@@ -7,7 +7,7 @@ import re
 import subprocess
 import time
 
-VERSION = "v1"
+VERSION = "v2"
 
 
 def validate_rules(rules):
