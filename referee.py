@@ -7,7 +7,7 @@ import re
 import subprocess
 import time
 
-VERSION = "v3"  # Turn/deadline/ledger game; legacy proof fixtures remain supported.
+VERSION = "v4"  # Turn/deadline/ledger game; legacy proof fixtures remain supported.
 
 
 def validate_rules(rules):
