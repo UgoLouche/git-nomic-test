@@ -4,9 +4,10 @@ PRs propose executable rule changes; reviews vote; the installed referee adopts
 an approved proposal. The referee and workflows are themselves amendable. A broken
 adopted rule can end the game. There is no immutable engine or required test gate.
 
-**Status:** local tests pass; App scope and live environment isolation are
-validated. Source bootstrap and the live adoption proof are in progress in
-`UgoLouche/git-nomic-test`. This is not yet the full turn/scoring game.
+**Status:** the minimal live GitHub proof passed in `UgoLouche/git-nomic-test`:
+player restrictions, distinct reviews, stale-vote rejection, referee-code adoption,
+and workflow-file adoption with automatic continuation. See
+[observed evidence](docs/live-results.md). This is not the full turn/scoring game.
 
 ## Small starting slice
 
@@ -91,8 +92,8 @@ limiter. Owner-side Actions disablement / App suspension is available if needed.
 - GitHub concurrency/event delivery can coalesce or miss work. Reconciliation
   reads all open PRs rather than trusting an event payload; this is not guaranteed
   scheduling/progress. Changing/removing the signal or referee can stop the game.
-- Bot reviews, workflow-file adoption, ordinary-player restrictions, protected
-  environment behavior, and automatic event chaining still require the
-  [live proof](docs/live-proof.md). Bot results will not prove human/fork behavior.
+- The [live protocol](docs/live-proof.md) was exercised for the first bot proof;
+  see [results](docs/live-results.md). Bot results do not prove human/fork behavior,
+  exhaustive retry recovery, or every possible race.
 - State commits/scoring, turn order, timers, victory rules, and deliberate
   destructive amendments are deferred.
