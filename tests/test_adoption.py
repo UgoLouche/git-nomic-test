@@ -2,7 +2,7 @@
 import json
 import os
 from pathlib import Path
-import shutil
+import re
 import subprocess
 import sys
 import tempfile
@@ -62,7 +62,12 @@ class LocalAdoptionTests(unittest.TestCase):
             git("init", "-b", "main")
             git("config", "user.name", "Disposable local test")
             git("config", "user.email", "test@example.invalid")
-            shutil.copyfile(ROOT / "referee.py", repo / "referee.py")
+            # Normalize only the disposable fixture's version. An adopted
+            # production version must not invalidate this v1 -> v2 scenario.
+            baseline, count = re.subn(r'^VERSION = "[^"]+"[^\n]*$', 'VERSION = "v1"',
+                                      (ROOT / "referee.py").read_text(), count=1, flags=re.M)
+            self.assertEqual(count, 1)
+            (repo / "referee.py").write_text(baseline)
             (repo / "game.json").write_text(json.dumps({"base": "main", "players": [11, 22, 33]}))
             git("add", ".")
             git("commit", "-m", "Installed v1")
