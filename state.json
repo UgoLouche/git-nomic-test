@@ -22,13 +22,19 @@
       "at": "2026-09-20T23:12:58Z",
       "pr": 6,
       "head": "67553033808e7fcde2de37b2e34b9c75d2909202"
+    },
+    {
+      "turn": 3,
+      "player": 331776549,
+      "outcome": "passed",
+      "at": "2026-09-20T23:18:22Z"
     }
   ],
-  "turn": 3,
-  "player": 331776549,
+  "turn": 4,
+  "player": 331775289,
   "phase": "proposing",
-  "started_at": "2026-09-20T23:12:58Z",
-  "deadline": "2026-09-20T23:17:58Z",
+  "started_at": "2026-09-20T23:18:22Z",
+  "deadline": "2026-09-20T23:23:22Z",
   "proposal": null,
   "winners": []
 }
