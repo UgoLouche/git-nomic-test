@@ -1,4 +1,4 @@
-"""Mutable first-slice referee. Only execute the installed default-branch copy."""
+"""Mutable Git-nomic referee. Only execute the installed default-branch copy."""
 import argparse
 import json
 import os
@@ -7,7 +7,7 @@ import re
 import subprocess
 import time
 
-VERSION = "v2"  # Current-revision voting proof.
+VERSION = "v3"  # Turn/deadline/ledger game; legacy proof fixtures remain supported.
 
 
 def validate_rules(rules):
@@ -93,6 +93,29 @@ class GitHub:
         return self.api(f"pulls/{number}/merge", method="PUT",
                         body={"sha": sha, "merge_method": "merge"})
 
+    def timeline(self, number):
+        return self.api(f"issues/{number}/timeline?per_page=100", paginate=True)
+
+    def close(self, number):
+        return self.api(f"pulls/{number}", method="PATCH", body={"state": "closed"})
+
+    def save_state(self, state, installed_sha, branch):
+        # Build on exactly the installed commit, then advance main without force.
+        # A concurrent unrelated main change makes this non-fast-forward, unlike
+        # a Contents PUT guarded only by a file SHA. Failed writes are not retried.
+        parent = self.api(f"git/commits/{installed_sha}")
+        blob = self.api("git/blobs", method="POST",
+                        body={"content": json.dumps(state, indent=2) + "\n", "encoding": "utf-8"})
+        tree = self.api("git/trees", method="POST", body={
+            "base_tree": parent["tree"]["sha"],
+            "tree": [{"path": "state.json", "mode": "100644", "type": "blob", "sha": blob["sha"]}]})
+        commit = self.api("git/commits", method="POST", body={
+            "message": f"Referee: turn {state['turn']} {state['phase']}",
+            "tree": tree["sha"], "parents": [installed_sha]})
+        self.api(f"git/refs/heads/{branch}", method="PATCH",
+                 body={"sha": commit["sha"], "force": False})
+        return commit["sha"]
+
 
 def reconcile(api, rules, installed_sha, *, apply=False, emit=print):
     """At most one adoption: a new invocation must load the newly installed rules."""
@@ -129,12 +152,23 @@ def main():
     parser.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY"))
     parser.add_argument("--rules", default="game.json")
     parser.add_argument("--installed-sha", required=True)
-    parser.add_argument("--apply", action="store_true", help="Actually merge; default is read-only")
+    parser.add_argument("--apply", action="store_true", help="Write state/close/merge; default is read-only")
+    parser.add_argument("--now", help="ISO-8601 clock override for local simulations")
     args = parser.parse_args()
     if not args.repo:
         parser.error("--repo or GITHUB_REPOSITORY is required")
     rules = validate_rules(json.loads(Path(args.rules).read_text()))
-    result = reconcile(GitHub(args.repo), rules, args.installed_sha, apply=args.apply)
+    if "turns" in rules:
+        from game_engine import reconcile_game, timestamp
+        state = json.loads(Path("state.json").read_text())
+        now = timestamp(args.now) if args.now else time.time()
+        print(json.dumps({"referee": VERSION, "installed_sha": args.installed_sha,
+                          "apply": args.apply}))
+        result = reconcile_game(GitHub(args.repo), rules, state, args.installed_sha,
+                                now=now, apply=args.apply)
+    else:
+        # Original proof mode remains useful for the executable adoption fixture.
+        result = reconcile(GitHub(args.repo), rules, args.installed_sha, apply=args.apply)
     print(json.dumps({"result": result}))
 
 
