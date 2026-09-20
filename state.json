@@ -7,9 +7,9 @@
   "history": [],
   "turn": 1,
   "player": 331775289,
-  "phase": "new",
-  "started_at": null,
-  "deadline": null,
+  "phase": "proposing",
+  "started_at": "2026-09-20T23:06:26Z",
+  "deadline": "2026-09-20T23:11:26Z",
   "proposal": null,
   "winners": []
 }
