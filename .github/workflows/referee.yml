@@ -40,4 +40,6 @@ jobs:
       - name: Run only the installed referee
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
-        run: python referee.py --installed-sha "$(git rev-parse HEAD)" --apply
+        run: |
+          echo 'workflow-v2'
+          python referee.py --installed-sha "$(git rev-parse HEAD)" --apply
