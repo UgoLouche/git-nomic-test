@@ -18,9 +18,20 @@
   ],
   "turn": 2,
   "player": 331776221,
-  "phase": "proposing",
+  "phase": "voting",
   "started_at": "2026-09-20T23:11:08Z",
-  "deadline": "2026-09-20T23:16:08Z",
-  "proposal": null,
+  "deadline": "2026-09-20T23:15:09Z",
+  "proposal": {
+    "number": 6,
+    "head": "67553033808e7fcde2de37b2e34b9c75d2909202",
+    "author": 331776221,
+    "opened_at": "2026-09-20T23:12:09Z",
+    "voters": [
+      331775289,
+      331776549
+    ],
+    "award": 2,
+    "force_push_ids": []
+  },
   "winners": []
 }
