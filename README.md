@@ -1,99 +1,92 @@
-# Git-nomic: first permission proof
+# Git-nomic
 
 PRs propose executable rule changes; reviews vote; the installed referee adopts
-an approved proposal. The referee and workflows are themselves amendable. A broken
-adopted rule can end the game. There is no immutable engine or required test gate.
+accepted proposals. **Code is law:** rules, ledger, referee, and workflows are all
+amendable. An adopted bug can legitimately stop the game. Tests are not mandatory
+merge gates. Platform permissions and owner administration remain outside game law.
 
-**Status:** the minimal live GitHub proof passed in `UgoLouche/git-nomic-test`:
-player restrictions, distinct reviews, stale-vote rejection, referee-code adoption,
-and workflow-file adoption with automatic continuation. See
-[observed evidence](docs/live-results.md). This is not the full turn/scoring game.
+The first live permission/adoption proof passed; see [evidence](docs/live-results.md).
+The playable slice adds turns, deadlines, scoring and a mutable state ledger.
+See [playable mechanics and validation](docs/playable-game.md) for exact semantics,
+testing boundaries, and the bounded live campaign protocol.
 
-## Small starting slice
+## Starting game
 
-- Three eligible players, configured by **GitHub user ID** in `game.json`.
-- Any eligible player can propose. Both other players must approve the current
-  head commit. Latest decisive review wins; comments/pending reviews are not
-  votes; dismissed votes no longer count. Missing votes abstain.
-- Eligible, open, non-draft, mergeable PRs targeting `main` are considered oldest
-  first. Unapproved proposals remain open. There are no turns/deadlines yet.
-- One merge per invocation; a new invocation must load the newly installed code.
-  This avoids applying yesterday's referee to a second proposal after an amendment.
-- The GitHub merge request pins the approved head SHA. Code is never loaded from
-  a proposed revision during voting. `--apply` is opt-in; the CLI defaults to reads.
+- Three players rotate in the order of GitHub **user IDs** in `game.json`.
+- One week to propose. The first eligible, open, non-draft PR created during the
+  current player's proposal window is selected, ordered by creation time then PR
+  number. No eligible proposal means a pass. Out-of-turn/extra PRs are ignored;
+  they are not carried into a later turn.
+- Voting opens when the referee selects the PR and lasts one week. The selected
+  revision is frozen; revisions invalidate the proposal, including a force push
+  back to the original SHA. Conflicts fail; unknown mergeability waits.
+- At the deadline, a strict majority of all eligible non-author players must
+  approve the frozen revision. With three players, both others must approve.
+  Abstentions are not approvals; ties fail. No early acceptance.
+- An accepted proposal earns one point; first to five wins. `state.json` contains
+  scores, active turn/proposal, and outcome history. It too can be amended.
+- After a merge, a **fresh checkout of the adopted code** settles its award and
+  starts the next turn. The award/electorate were frozen by the old rules;
+  adopted scoring code, ledger, rotation, and victory threshold govern settlement.
 
-These are proof conventions, not protected constitutional rules. Even the
-three-player validation and `main` convention can be amended along with their
-workflows/environment configuration as appropriate. Platform permissions and
-owner administration are outside executable game law.
+These are starting conventions, not an immutable constitution. A player can
+propose changing any of them. A normal state amendment must still merge cleanly
+with the referee's intervening state commits.
 
-## Run locally
+## Run and test
 
-Python 3.12+ and Git are sufficient for tests. Actual API operations also need
-GitHub CLI (`gh`) and a repository-scoped installation token.
+Python 3.12+ and Git suffice for local tests. Live operations also need `gh` and
+an explicitly repository-scoped referee installation token.
 
 ```sh
 python3 -m unittest discover -s tests -v
+python3 -m compileall -q referee.py game_engine.py tests
 python3 referee.py --help
-# Once game.json has real player IDs and this checkout matches installed main:
-GH_TOKEN=... python3 referee.py --repo OWNER/REPO --installed-sha "$(git rev-parse HEAD)"
+# Read-only preview; supply credentials securely, never paste them in commands:
+python3 referee.py --repo OWNER/REPO --installed-sha "$(git rev-parse HEAD)"
+# Add --apply to write. --now 2026-01-01T00:00:00Z is for local clock simulations.
 ```
 
-`game.json` contains the three verified test-App bot user IDs. The referee
-fails closed if this list is empty, duplicated, or malformed. Do not put real tokens in shell history; the command above only
-illustrates the environment interface. Prefer securely supplied credentials.
+Always run the installed main revision, not a proposed branch. The CLI defaults
+to read-only. It makes at most one main commit or merge per invocation, then stops.
+The original no-`turns` proof configuration remains supported for the historical
+code-adoption fixture; the actual playable configuration contains `turns`.
 
-`tests/test_adoption.py` uses real disposable Git commits, fake GitHub responses,
-and fresh Python processes. It proves local code adoption, **not** actual GitHub
-merging, App identities, environment isolation, or Actions triggering.
-
-## Workflows and credential boundary
+## Automation and credentials
 
 ```text
-proposal opened/revised/reopened/ready, or review submitted/dismissed
-  → Vote signal (no checkout, no secrets, no token permissions)
-  → workflow_run on default branch
-  → Referee checks installed main against current GitHub reviews
-  → App-token merge
-  → push on main
-  → next Referee loads the adopted code
+PR/review change → unprivileged Vote signal → default-branch Referee
+main push / manual dispatch / 03:17, 11:17, 19:17 UTC → Referee
+Referee state commit or merge → main push → freshly installed Referee
 ```
 
-Manual dispatch on `main` is also available for the initial permission test and
-recovering missed signals. No cron jobs or continuous service are installed.
-No proposed workflow artifacts/caches are consumed by the privileged job. All
-external Actions are pinned to commit SHAs; checkout does not persist credentials.
+The schedule reconciles every **eight hours**. Stored deadlines are vote cutoffs,
+not promises of punctual execution; GitHub may delay/drop scheduled jobs. A late
+turn transition gives the next player a full new window from processing time.
 
-**Before enabling:** follow [owner setup](docs/owner-setup.md). The referee key
-must be an **environment** secret in `referee-main`, restricted to the branch
-`main` only. A repository secret would let an unadopted same-repository workflow
-access it. A YAML `if` condition is not a substitute for this platform boundary.
-Install every test App on the disposable game repository only. Player credentials
-never belong in the game runtime. No unrelated secrets or self-hosted runners.
+Idle/finished invocations do not write, preventing state-commit loops. No proposed
+code, artifacts, or caches enter the privileged job. Actions are pinned; checkout
+does not persist credentials. See [owner setup](docs/owner-setup.md): only the
+referee App bypasses main restrictions, and its key is an environment secret
+restricted to branch `main`. Player credentials stay outside the game runtime.
 
-`PROOF_ENABLED=true` enables referee jobs; it is initially absent/false. This is
-an out-of-game setup switch, not a security boundary. Adopted code can remove the
-check; changing the variable itself needs separate platform permissions. Use
-standard public-repository Linux runners, no paid runner classes; start with a
-supervised campaign of at most 50 workflow runs and stop if
-unexpected runs appear. This is an operational cap, not an immutable spending
-limiter. Owner-side Actions disablement / App suspension is available if needed.
+`PROOF_ENABLED=true` enables the referee. Setting it to `false` skips execution,
+but scheduled workflow records still appear. Disable the workflow/remove the
+schedule to stop those too. This owner switch is not an immutable security guard;
+adopted code can change/remove it. Standard hosted runners on this public repo
+are free; no paid/self-hosted runners or unrelated credentials are authorized.
 
-## Known limits
+## Limits
 
-- GitHub does not atomically snapshot custom reviews and merge. Reviews and the
-  base are checked again immediately before merging, but a final review/base race
-  remains; only the head SHA is atomically guarded by the merge API. Serial
-  workflow execution and referee-only main updates reduce, not eliminate, races.
-- Unknown mergeability gets three reads with two-second waits, then stays pending.
-  A later event or manual dispatch can retry. Failed writes are not blindly retried;
-  a fresh invocation reads authoritative state (including a possibly successful
-  merge whose response was lost).
-- GitHub concurrency/event delivery can coalesce or miss work. Reconciliation
-  reads all open PRs rather than trusting an event payload; this is not guaranteed
-  scheduling/progress. Changing/removing the signal or referee can stop the game.
-- The [live protocol](docs/live-proof.md) was exercised for the first bot proof;
-  see [results](docs/live-results.md). Bot results do not prove human/fork behavior,
-  exhaustive retry recovery, or every possible race.
-- State commits/scoring, turn order, timers, victory rules, and deliberate
-  destructive amendments are deferred.
+- Custom review checks and PR closing/merging are not atomic. Only the merge head
+  SHA is atomically pinned. Final review/base/force-push races remain possible.
+- State commits use the installed parent and a non-force ref update, rejecting a
+  concurrent divergent main update instead of overwriting adopted code/state.
+- Writes are never blindly retried. A new checkout reads authoritative state after
+  an ambiguous response. Ordinary retry paths are simulated; exhaustive recovery
+  is not guaranteed, and state/logic amendments can deliberately break it.
+- Review dismissal is represented by GitHub's current review state, not a complete
+  historical snapshot. A currently dismissed review does not count, even if it
+  was dismissed after the cutoff. Other reviews submitted at/after cutoff are
+  excluded. Timeline consistency can also delay detection of force pushes.
+- Human/fork behavior and deliberate game-breaking amendments remain untested.

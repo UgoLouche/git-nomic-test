@@ -1,6 +1,9 @@
 name: Referee
 on:
   workflow_dispatch:
+  # UTC, away from the busy top of the hour. Late runs reconcile stored cutoffs.
+  schedule:
+    - cron: '17 3,11,19 * * *'
   push:
     branches: [main]
   workflow_run:

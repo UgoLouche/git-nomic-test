@@ -4,5 +4,11 @@
     331775289,
     331776221,
     331776549
-  ]
+  ],
+  "turns": {
+    "proposal_seconds": 300,
+    "voting_seconds": 180,
+    "points_per_accept": 1,
+    "points_to_win": 5
+  }
 }
