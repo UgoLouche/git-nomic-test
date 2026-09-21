@@ -1,7 +1,7 @@
 {
   "scores": {
     "331775289": 4,
-    "331776221": 3,
+    "331776221": 5,
     "331776549": 0
   },
   "history": [
@@ -34,24 +34,25 @@
       "player": 331775289,
       "outcome": "passed",
       "at": "2026-09-21T03:35:14Z"
+    },
+    {
+      "turn": 5,
+      "player": 331776221,
+      "outcome": "accepted",
+      "at": "2026-09-21T03:40:33Z",
+      "pr": 7,
+      "head": "337faec4f2d6698df3118000f834e9133ce5ce4f",
+      "award": 2,
+      "merge": "403f566bfa5963a10c17ee6dce19125d291264f9"
     }
   ],
   "turn": 5,
   "player": 331776221,
-  "phase": "voting",
+  "phase": "finished",
   "started_at": "2026-09-21T03:35:14Z",
-  "deadline": "2026-09-21T03:39:53Z",
-  "proposal": {
-    "number": 7,
-    "head": "337faec4f2d6698df3118000f834e9133ce5ce4f",
-    "author": 331776221,
-    "opened_at": "2026-09-21T03:36:53Z",
-    "voters": [
-      331775289,
-      331776549
-    ],
-    "award": 2,
-    "force_push_ids": []
-  },
-  "winners": []
+  "deadline": null,
+  "proposal": null,
+  "winners": [
+    331776221
+  ]
 }
