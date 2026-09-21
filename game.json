@@ -6,9 +6,9 @@
     331776549
   ],
   "turns": {
-    "proposal_seconds": 300,
-    "voting_seconds": 180,
-    "points_per_accept": 2,
+    "proposal_seconds": 604800,
+    "voting_seconds": 604800,
+    "points_per_accept": 1,
     "points_to_win": 5
   }
 }

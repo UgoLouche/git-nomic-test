@@ -6,7 +6,8 @@ amendable. An adopted bug can legitimately stop the game. Tests are not mandator
 merge gates. Platform permissions and owner administration remain outside game law.
 
 The first live permission/adoption proof passed; see [evidence](docs/live-results.md).
-The playable slice adds turns, deadlines, scoring and a mutable state ledger.
+The playable slice adds turns, deadlines, scoring and a mutable state ledger;
+see its [live evidence](docs/playable-results.md).
 See [playable mechanics and validation](docs/playable-game.md) for exact semantics,
 testing boundaries, and the bounded live campaign protocol.
 
