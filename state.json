@@ -28,13 +28,19 @@
       "player": 331776549,
       "outcome": "passed",
       "at": "2026-09-20T23:18:22Z"
+    },
+    {
+      "turn": 4,
+      "player": 331775289,
+      "outcome": "passed",
+      "at": "2026-09-21T03:35:14Z"
     }
   ],
-  "turn": 4,
-  "player": 331775289,
+  "turn": 5,
+  "player": 331776221,
   "phase": "proposing",
-  "started_at": "2026-09-20T23:18:22Z",
-  "deadline": "2026-09-20T23:23:22Z",
+  "started_at": "2026-09-21T03:35:14Z",
+  "deadline": "2026-09-21T03:40:14Z",
   "proposal": null,
   "winners": []
 }
