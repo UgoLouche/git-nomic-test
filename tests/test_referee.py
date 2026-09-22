@@ -6,7 +6,8 @@ from unittest.mock import patch
 
 from referee import GitHub, decision, reconcile, validate_rules
 
-RULES = {"base": "main", "players": [11, 22, 33]}
+# Historical no-turns proof fixture explicitly opts out of the later pytest gate.
+RULES = {"base": "main", "players": [11, 22, 33], "require_pytest": False}
 PR = {"number": 1, "state": "open", "draft": False, "merged": False,
       "user": {"id": 11}, "base": {"ref": "main"},
       "head": {"sha": "head-1"}, "mergeable": True}
@@ -90,7 +91,7 @@ class VotingTests(unittest.TestCase):
                 self.assertNotEqual(self.decide([review(22), review(33)], **change), "approved")
 
     def test_invalid_player_configuration_fails_closed(self):
-        for players in ([], [11, 22], [11, 22, 22], [11, 22, 0], [11, 22, True],
+        for players in ([], [11], [11, 22, 22], [11, 22, 0], [11, 22, True],
                         [11, 22, "33"]):
             with self.subTest(players=players), self.assertRaises(ValueError):
                 validate_rules({**RULES, "players": players})

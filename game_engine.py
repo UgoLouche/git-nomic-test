@@ -44,6 +44,10 @@ def validate(rules, state):
     return state
 
 
+def majority(votes, choice):
+    return sum(v == choice for v in votes.values()) > len(votes) / 2
+
+
 def tally(reviews, proposal, deadline):
     """Latest decisive current-revision vote submitted before the deadline.
 
@@ -60,7 +64,7 @@ def tally(reviews, proposal, deadline):
     votes = {u: (latest[u]["state"] if u in latest
                  and latest[u].get("commit_id") == proposal["head"] else "ABSTAIN")
              for u in proposal["voters"]}
-    return sum(v == "APPROVED" for v in votes.values()) > len(votes) / 2, votes
+    return majority(votes, "APPROVED"), votes
 
 
 def start_turn(state, now, rules):
@@ -142,6 +146,11 @@ def reconcile_game(api, rules, state, installed_sha, *, now, apply=False, emit=p
             if (pr["state"] != "open" or pr.get("draft") or pr.get("merged")
                     or pr["base"]["ref"] != rules["base"]):
                 continue
+            if rules.get("require_pytest", True):
+                tests = api.pytest_status(pr["number"], pr["head"]["sha"])
+                if tests != "passed":
+                    emit(json.dumps({"pr": pr["number"], "result": "pytest-" + tests}))
+                    continue
             # Snapshot the force-push timeline too: returning to the original SHA
             # after a force push must not conceal a frozen-revision violation.
             pushes = force_push_ids(api, pr["number"])
@@ -186,12 +195,32 @@ def reconcile_game(api, rules, state, installed_sha, *, now, apply=False, emit=p
     reason = invalid(pr)
     if reason:
         return end(reason, pr)
-    if now < timestamp(state["deadline"]):
-        return "waiting-for-deadline"
     approved, votes = tally(api.reviews(pr["number"]), proposal, state["deadline"])
-    emit(json.dumps({"pr": pr["number"], "votes": votes, "approved": approved}))
+    rejected = majority(votes, "CHANGES_REQUESTED")
+    expired = now >= timestamp(state["deadline"])
+    emit(json.dumps({"pr": pr["number"], "votes": votes, "approved": approved,
+                     "rejecting_majority": rejected}))
+    if not approved and not rejected and not expired:
+        return "waiting-for-votes"
     if not approved:
+        if apply:
+            # Like acceptance, recheck before acting on a decisive vote. Closing
+            # has no atomic vote/head guard; the final API race remains possible.
+            current = api.pull(pr["number"])
+            reason = invalid(current)
+            if reason:
+                return end(reason, current)
+            fresh_approved, fresh_votes = tally(
+                api.reviews(pr["number"]), proposal, state["deadline"])
+            if (current["state"] != "open" or current.get("merged") or fresh_approved
+                    or (not expired and not majority(fresh_votes, "CHANGES_REQUESTED"))):
+                return "inputs-changed"
+            pr = current
         return end("rejected", pr)
+    if rules.get("require_pytest", True):
+        tests = api.pytest_status(pr["number"], proposal["head"])
+        if tests != "passed":
+            return end("pytest-" + tests, pr) if expired else "waiting-for-tests"
     if pr.get("mergeable") is not True:
         return "waiting-for-mergeability"
     if not apply:
@@ -204,6 +233,9 @@ def reconcile_game(api, rules, state, installed_sha, *, now, apply=False, emit=p
             or current.get("mergeable") is not True
             or not tally(api.reviews(pr["number"]), proposal, state["deadline"])[0]):
         return "inputs-changed"
+    if (rules.get("require_pytest", True)
+            and api.pytest_status(pr["number"], proposal["head"]) != "passed"):
+        return "tests-changed"
     if api.base_sha(rules["base"]) != installed_sha:
         return "stale"
     result = api.merge(pr["number"], proposal["head"])

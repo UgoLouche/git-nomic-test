@@ -8,8 +8,8 @@ import sys
 import tempfile
 import unittest
 
-from test_game import RULES, STATE, START, WEEK
-from game_engine import utc
+from test_game import RULES, STATE, START
+from game_engine import timestamp, utc
 
 ROOT = Path(__file__).resolve().parents[1]
 DRIVER = '''import json, os, subprocess
@@ -34,6 +34,9 @@ class API:
         return self.data["reviews"]
     def timeline(self, number):
         return []
+    def pytest_status(self, number, sha):
+        # Actions metadata is simulated here; actual runner tests are separate.
+        return "passed"
     def save_state(self, state, installed, branch):
         assert self.base_sha(branch) == installed
         Path("state.json").write_text(json.dumps(state, indent=2) + "\\n")
@@ -114,11 +117,15 @@ class PlayableAdoptionTests(unittest.TestCase):
                          "user": {"id": 11}, "base": {"ref": "main"}, "head": {"sha": head},
                          "created_at": utc(START), "mergeable": True}
             api["reviews"] = [{"id": u, "user": {"id": u}, "state": "APPROVED",
-                               "submitted_at": utc(START), "commit_id": head} for u in (22, 33)]
+                               "submitted_at": utc(START), "commit_id": head} for u in (22,)]
             (root / "api.json").write_text(json.dumps(api))
             self.assertEqual(run()[-1]["result"], "voting-opened")
-            self.assertEqual(run()[-1]["result"], "waiting-for-deadline")
-            env["SIM_NOW"] = utc(START + WEEK)
+            self.assertEqual(run()[-1]["result"], "waiting-for-votes")
+            api["reviews"].append({"id": 33, "user": {"id": 33}, "state": "APPROVED",
+                                   "submitted_at": utc(START + 60), "commit_id": head})
+            (root / "api.json").write_text(json.dumps(api))
+            env["SIM_NOW"] = utc(START + 60)
+            self.assertLess(timestamp(env["SIM_NOW"]), timestamp(state()["deadline"]))
             before = git("rev-parse", "HEAD")
             adoption = run()
             self.assertEqual(adoption[0]["version"], "v3")

@@ -1,13 +1,14 @@
 {
   "base": "main",
+  "require_pytest": true,
   "players": [
     331775289,
     331776221,
     331776549
   ],
   "turns": {
-    "proposal_seconds": 604800,
-    "voting_seconds": 604800,
+    "proposal_seconds": 1800,
+    "voting_seconds": 900,
     "points_per_accept": 1,
     "points_to_win": 5
   }

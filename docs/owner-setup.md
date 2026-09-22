@@ -1,5 +1,12 @@
 # Owner setup needed for live validation
 
+This document records the original four-App bot bootstrap. For a human game,
+create only a referee App, invite players with Write (not Admin) access, and put
+2+ distinct human GitHub user IDs in `game.json` in turn order. The pytest and
+owner-reset workflows require the existing main-only environment; see README for
+current operation and reset instructions. Validate ordinary human restrictions
+before relying on the historical bot-only proof.
+
 The current agent installation token exposes only `UgoLouche/rustgame`. Do not
 expand that App or put the mutable game under its credentials. GitHub App
 registration/installation requires the owner's authenticated account; the agent
@@ -54,8 +61,10 @@ For **each** App:
 
 Do not paste PEMs or tokens into chat. Do not install any of these Apps on
 `rustgame` or choose “All repositories.” The referee runtime's token Action also
-requests only this one repository and the three write permissions above; it
-does not need Actions-read permission in its runtime token.
+requests only this one repository and the three write permissions above. The
+local v6 pytest gate also requests Actions read to inspect run/job results; that
+grant was already part of the dedicated App setup. The separate reset workflow
+requests only Contents write. Neither change needs broader installation grants.
 
 ## 3. Restrict main updates to the referee
 

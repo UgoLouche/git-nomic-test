@@ -68,7 +68,8 @@ class LocalAdoptionTests(unittest.TestCase):
                                       (ROOT / "referee.py").read_text(), count=1, flags=re.M)
             self.assertEqual(count, 1)
             (repo / "referee.py").write_text(baseline)
-            (repo / "game.json").write_text(json.dumps({"base": "main", "players": [11, 22, 33]}))
+            (repo / "game.json").write_text(json.dumps({"base": "main", "players": [11, 22, 33],
+                                                        "require_pytest": False}))
             git("add", ".")
             git("commit", "-m", "Installed v1")
             base = git("rev-parse", "HEAD")

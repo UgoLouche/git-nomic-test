@@ -1,26 +1,26 @@
-name: Referee
+name: Reset game
 on:
   workflow_dispatch:
-  # UTC, away from the busy top of the hour. Late runs reconcile stored cutoffs.
-  schedule:
-    - cron: '17 3,11,19 * * *'
-  push:
-    branches: [main]
-  workflow_run:
-    workflows: [Vote signal, Proposal tests]
-    types: [completed]
+    inputs:
+      confirm:
+        description: 'Type RESET to clear scores/history and restart with current players/rules'
+        required: true
+        type: string
 permissions:
   contents: read
+# Serialize with regular reconciliation, including the push caused by this reset.
 concurrency:
   group: git-nomic-referee
   cancel-in-progress: false
 jobs:
-  reconcile:
-    if: github.ref == 'refs/heads/main' && vars.PROOF_ENABLED == 'true'
+  reset:
+    # Both original dispatch and any re-run must be by the personal repo owner.
+    if: >-
+      github.ref == 'refs/heads/main' && inputs.confirm == 'RESET' &&
+      github.actor == github.repository_owner &&
+      github.triggering_actor == github.repository_owner
     runs-on: ubuntu-latest
     timeout-minutes: 3
-    # REQUIRED: configure this environment to allow branch main only.
-    # The private key must be an environment secret, never a repository secret.
     environment: referee-main
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -37,13 +37,11 @@ jobs:
           private-key: ${{ secrets.REFEREE_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
           repositories: ${{ github.event.repository.name }}
-          permission-actions: read
           permission-contents: write
-          permission-pull-requests: write
-          permission-workflows: write
-      - name: Run only the installed referee
+      - name: Reset only state, retaining Git history and installed rules
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
         run: |
-          echo 'workflow-v2'
-          python referee.py --installed-sha "$(git rev-parse HEAD)" --apply
+          python reset_game.py --repo "$GITHUB_REPOSITORY" \
+            --installed-sha "$(git rev-parse HEAD)" \
+            --apply --confirm-reset "$GITHUB_REPOSITORY"

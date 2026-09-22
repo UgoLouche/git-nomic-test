@@ -23,6 +23,7 @@ class World:
         self.state = copy.deepcopy(STATE)
         self.base = "base-0"
         self.prs, self.votes, self.events = {}, {}, {}
+        self.test_results, self.test_reads = {}, []
         self.writes, self.merges, self.closed = [], [], []
         self.clock = START
         self.lost_save = self.lost_merge = self.lost_close = False
@@ -54,6 +55,10 @@ class World:
 
     def timeline(self, number):
         return copy.deepcopy(self.events[number])
+
+    def pytest_status(self, number, sha):
+        self.test_reads.append((number, sha))
+        return self.test_results.get((number, sha), "passed")
 
     def close(self, number):
         if self.failed_close:
@@ -141,13 +146,10 @@ class GameTests(unittest.TestCase):
         self.assertFalse(w.closed)
         self.assertEqual(w.state["phase"], "voting")
 
-    def test_full_week_to_vote_even_with_all_approvals(self):
+    def test_approving_majority_merges_early_then_adopted_code_advances(self):
         w = self.w
         w.voting()
-        self.assertEqual(w.tick(), "waiting-for-deadline")
-        w.clock += WEEK - 1
-        self.assertEqual(w.tick(), "waiting-for-deadline")
-        w.clock += 1
+        self.assertLess(w.clock, timestamp(w.state["deadline"]))
         self.assertEqual(w.tick(), "merged")
         self.assertEqual(w.state["scores"]["11"], 0)
         self.assertEqual(w.tick(), "accepted")
@@ -155,6 +157,110 @@ class GameTests(unittest.TestCase):
         self.assertEqual(w.state["player"], 22)
         self.assertEqual(w.state["turn"], 2)
         self.assertEqual(w.state["history"][0]["merge"], "merge-1")
+
+    def test_rejecting_majority_closes_early_and_advances_without_points(self):
+        w = self.w
+        n = w.voting()
+        w.vote(n, 22, "CHANGES_REQUESTED")
+        w.vote(n, 33, "CHANGES_REQUESTED")
+        self.assertLess(w.clock, timestamp(w.state["deadline"]))
+        self.assertEqual(w.tick(), "rejected")
+        self.assertEqual(w.closed, [n])
+        self.assertFalse(w.merges)
+        self.assertEqual(w.state["scores"]["11"], 0)
+        self.assertEqual(w.state["turn"], 2)
+        self.assertEqual(w.state["player"], 22)
+        self.assertEqual(w.state["started_at"], utc(w.clock))
+        self.assertEqual(w.state["deadline"], utc(w.clock + WEEK))
+        self.assertEqual(w.tick(), "waiting-for-proposal")
+        self.assertEqual(len(w.state["history"]), 1)
+
+    def test_no_majority_waits_then_rejects_at_cutoff(self):
+        for votes in ([], [(22, "APPROVED")], [(22, "CHANGES_REQUESTED")],
+                      [(22, "APPROVED"), (33, "CHANGES_REQUESTED")]):
+            with self.subTest(votes=votes):
+                w = World()
+                n = w.voting()
+                w.votes[n] = []
+                for user, value in votes:
+                    w.vote(n, user, value)
+                self.assertEqual(w.tick(), "waiting-for-votes")
+                w.clock = timestamp(w.state["deadline"]) - 1
+                self.assertEqual(w.tick(), "waiting-for-votes")
+                self.assertFalse(w.closed or w.merges)
+                w.due()
+                self.assertEqual(w.tick(), "rejected")
+                self.assertEqual(w.state["turn"], 2)
+
+    def test_stale_dismissed_author_and_outsider_votes_do_not_resolve_early(self):
+        for choice in ("APPROVED", "CHANGES_REQUESTED"):
+            for invalid_vote in ("stale", "dismissed", "author", "outsider"):
+                with self.subTest(choice=choice, invalid_vote=invalid_vote):
+                    w = World()
+                    n = w.voting()
+                    w.votes[n] = []
+                    w.vote(n, 22, choice)
+                    if invalid_vote == "stale":
+                        w.vote(n, 33, choice, sha="old")
+                    elif invalid_vote == "dismissed":
+                        w.vote(n, 33, choice)
+                        w.vote(n, 33, "DISMISSED")
+                    else:
+                        w.vote(n, 11 if invalid_vote == "author" else 99, choice)
+                    self.assertEqual(w.tick(), "waiting-for-votes")
+                    self.assertFalse(w.closed or w.merges)
+
+    def test_early_majority_dry_runs_never_write(self):
+        for choice, result in (("APPROVED", "dry-run:merge"),
+                               ("CHANGES_REQUESTED", "dry-run:rejected")):
+            with self.subTest(choice=choice):
+                w = World()
+                n = w.voting()
+                w.vote(n, 22, choice)
+                w.vote(n, 33, choice)
+                before = copy.deepcopy(w.state)
+                count = len(w.writes)
+                self.assertEqual(w.tick(False), result)
+                self.assertEqual(w.state, before)
+                self.assertEqual(len(w.writes), count)
+                self.assertFalse(w.closed or w.merges)
+
+    def test_majority_withdrawn_on_final_read_does_not_merge_or_close(self):
+        for choice in ("APPROVED", "CHANGES_REQUESTED"):
+            with self.subTest(choice=choice):
+                w = World()
+                n = w.voting()
+                w.vote(n, 22, choice)
+                w.vote(n, 33, choice)
+                with patch.object(w, "reviews", side_effect=[copy.deepcopy(w.votes[n]), []]):
+                    self.assertEqual(w.tick(), "inputs-changed")
+                self.assertFalse(w.closed or w.merges)
+                self.assertEqual(w.state["phase"], "voting")
+
+    def test_early_majority_rechecks_installed_base_before_mutating(self):
+        for choice in ("APPROVED", "CHANGES_REQUESTED"):
+            with self.subTest(choice=choice):
+                w = World()
+                n = w.voting()
+                w.vote(n, 22, choice)
+                w.vote(n, 33, choice)
+                with patch.object(w, "base_sha", side_effect=[w.base, "changed"]):
+                    self.assertEqual(w.tick(), "stale")
+                self.assertFalse(w.closed or w.merges)
+
+    def test_lost_early_close_response_advances_only_once(self):
+        w = self.w
+        n = w.voting()
+        w.vote(n, 22, "CHANGES_REQUESTED")
+        w.vote(n, 33, "CHANGES_REQUESTED")
+        w.lost_close = True
+        with self.assertRaises(RuntimeError):
+            w.tick()
+        self.assertEqual(w.tick(), "closed")
+        self.assertEqual(w.tick(), "waiting-for-proposal")
+        self.assertEqual(w.closed, [n])
+        self.assertEqual(w.state["turn"], 2)
+        self.assertEqual(w.state["scores"]["11"], 0)
 
     def test_thirteen_turns_first_to_five_with_weekly_windows(self):
         w = self.w
@@ -260,7 +366,7 @@ class GameTests(unittest.TestCase):
         n = w.propose()
         w.events[n].append({"id": 7, "event": "head_ref_force_pushed"})
         w.tick()
-        self.assertEqual(w.tick(), "waiting-for-deadline")
+        self.assertEqual(w.tick(), "waiting-for-votes")
 
     def test_conflict_draft_base_change_and_closed_pr(self):
         for change, result in [({"mergeable": False}, "conflicted"),
@@ -275,11 +381,10 @@ class GameTests(unittest.TestCase):
                 self.assertEqual(w.state["turn"], 2)
                 self.assertEqual(sum(w.state["scores"].values()), 0)
 
-    def test_unknown_mergeability_waits_but_does_not_award(self):
+    def test_early_approval_waits_for_known_mergeability_without_awarding(self):
         w = self.w
         n = w.voting()
         w.prs[n]["mergeable"] = None
-        w.due()
         self.assertEqual(w.tick(), "waiting-for-mergeability")
         self.assertFalse(w.merges)
         w.prs[n]["mergeable"] = True
