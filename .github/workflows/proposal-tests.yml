@@ -40,3 +40,5 @@ jobs:
       - name: Run pytest
         working-directory: proposal
         run: python -m pytest -q
+      - name: Amended test runner marker
+        run: echo "pytest-workflow-v6-amended"
