@@ -1,169 +1,89 @@
 # Git-nomic
 
-PRs propose executable rule changes; reviews vote; the installed referee adopts
-accepted proposals. **Code is law:** rules, ledger, referee, and workflows are all
-amendable. An adopted bug can legitimately stop the game. Passing pytest is a
-starting rule, not immutable branch protection: proposals can amend their own
-tests, test workflow and the gate itself. Platform permissions and owner
-administration remain outside game law.
+**A game where changing the rules is how you play—and the rules are code.**
 
-The first live permission/adoption proof passed; see [evidence](docs/live-results.md).
-The playable slice adds turns, deadlines, scoring and a mutable state ledger;
-see its [live evidence](docs/playable-results.md).
-See [playable mechanics and validation](docs/playable-game.md) for exact semantics,
-testing boundaries, and the bounded live campaign protocol.
+Git-nomic is a small collective programming game for friends and coworkers,
+inspired by *Nomic*: a game whose rules can be changed by its players. Here,
+GitHub is the table, pull requests are proposals, and code reviews are votes.
+An automated **referee** counts the votes, merges accepted proposals, keeps
+score, and moves the game to the next player.
 
-**Local v6 changes:** early approving/rejecting majorities, arbitrary rosters of
-2+ players, a pytest gate before voting and merging, and an explicit owner reset.
-These are locally validated only; the finished live game still runs v4's original
-deadline-only rule. Historical live evidence does not prove these newer features.
+The twist: the referee is part of the repository. You can propose changing how
+votes count, how points are awarded, whose turn comes next, or the automation
+itself. There is no immutable game engine underneath it all.
 
-## Starting game
+## What does a turn look like?
 
-- Two or more registered players rotate in the order of GitHub **user IDs** in
-  `game.json`; there is no fixed upper player limit.
-- One week to propose. The first eligible, open, non-draft PR created during the
-  current player's proposal window is selected, ordered by creation time then PR
-  number, **after its current revision passes pytest**. Failing/pending proposals
-  can be fixed until selected; no eligible proposal means a pass. Out-of-turn/extra
-  PRs are ignored and are not carried into a later turn.
-- Voting opens when the referee selects the PR and lasts **up to** one week. The
-  selected revision is frozen; revisions invalidate the proposal, including a
-  force push back to the original SHA. Conflicts fail; unknown mergeability
-  prevents adoption until GitHub resolves it.
-- A strict approving majority of all eligible non-author players merges early;
-  a strict rejecting majority (`Request changes`) closes early without points.
-  Either outcome advances the turn. For N registered players, the threshold is
-  `floor((N - 1) / 2) + 1`: with 2/3/4/5 players, require 1/2/2/3 votes.
-  The denominator is the whole registered non-author roster, not votes cast.
-  Abstentions/dismissals are neither approvals nor rejections.
-  With no majority, voting stays open until cutoff; insufficient approvals then
-  fail. A majority acts when the referee observes and rechecks it, not atomically
-  when a review is submitted.
-- An accepted proposal earns one point; first to five wins. `state.json` contains
-  scores, active turn/proposal, and outcome history. It too can be amended.
-- After a merge, a **fresh checkout of the adopted code** settles its award and
-  starts the next turn. The award/electorate were frozen by the old rules;
-  adopted scoring code, ledger, rotation, and victory threshold govern settlement.
+Imagine Alice, Bob and Charlie are playing:
 
-These are starting conventions, not an immutable constitution. A player can
-propose changing any of them. A normal state amendment must still merge cleanly
-with the referee's intervening state commits.
+1. **Alice proposes a change.** She opens a pull request: “Future accepted
+   proposals should earn two points instead of one,” with the code and tests
+   that implement it.
+2. **Tests pass and voting opens.** The referee selects the proposal and freezes
+   its revision. Alice must stop editing it at that point.
+3. **Bob and Charlie review it.** `Approve` is a yes vote; `Request changes` is a
+   no vote. Comments are discussion, not votes.
+4. **The referee decides.** With both approving, it merges the change, awards
+   Alice the one point promised when voting opened, and starts Bob's turn.
+   Future proposals now carry the new two-point award.
 
-## Run and test
+That last detail matters: a proposal is accepted under the installed rules, then
+its adopted code governs what happens next. Changing the scoring implementation
+itself could change Alice's result too. That's part of the game.
 
-Python 3.12+, Git and pytest are needed for local tests; the game runtime remains
-stdlib-only. Live operations also need `gh` and an explicitly repository-scoped
-referee installation token.
+## The starting rules, briefly
 
-```sh
-python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install -r requirements-test.txt
-python -m pytest -q
-python -m compileall -q referee.py game_engine.py reset_game.py tests
-python3 referee.py --help
-# Read-only preview; supply credentials securely, never paste them in commands:
-python3 referee.py --repo OWNER/REPO --installed-sha "$(git rev-parse HEAD)"
-# Add --apply to write. --now 2026-01-01T00:00:00Z is for local clock simulations.
-```
+- **Two or more players**, taking turns in a registered order.
+- **One week to propose**, then **up to one week to vote**.
+- Passing tests are required before selection; selected proposals cannot change.
+- A **strict majority of all registered players except the author** decides.
+  An approving majority accepts early; a rejecting majority rejects early.
+  No majority waits until the cutoff; insufficient approvals then lose.
+- An accepted proposal normally earns **one point**. First to **five** wins.
+- Only the referee merges game proposals. A green GitHub merge button is not
+  permission for a player to merge one manually.
 
-Always run the installed main revision, not a proposed branch. The CLI defaults
-to read-only. It makes at most one main commit or merge per invocation, then stops.
-The original no-`turns` proof configuration remains supported for the historical
-code-adoption fixture; the actual playable configuration contains `turns`.
+These are the starting rules, not permanent laws. The [installed code](game_engine.py),
+[configuration](game.json), and [current state](state.json) govern each game.
 
-## Automation and credentials
+## What could we change?
 
-```text
-PR change → unprivileged Proposal tests (pytest on exact PR head)
-PR/review change → unprivileged Vote signal
-Vote signal / Proposal tests completion → default-branch Referee
-main push / manual dispatch / 03:17, 11:17, 19:17 UTC → Referee
-Referee state commit or merge → main push → freshly installed Referee
-```
+Start small: adjust the winning score, change the turn order, or introduce a
+new scoring rule. Later, invent teams, change voting thresholds, or replace the
+turn system entirely. Proposals can include tests, documentation, and workflows,
+not just a settings change.
 
-The schedule reconciles every **eight hours**. Stored deadlines are vote cutoffs,
-not promises of punctual execution; GitHub may delay/drop scheduled jobs. Review
-signals normally trigger early decisions without waiting for the schedule. A late
-turn transition gives the next player a full new window from processing time.
+**Code is law, including mistakes.** An accepted amendment can deadlock the game
+or break its automation. The group may agree to an out-of-game repair, but
+recovery is not guaranteed by a hidden safety engine. This is an experiment
+among trusted people, not a hostile multiplayer service.
 
-Idle/finished invocations do not write, preventing state-commit loops. No proposed
-code, artifacts, or caches enter the privileged job. Actions are pinned; checkout
-does not persist credentials. See [owner setup](docs/owner-setup.md): only the
-referee App bypasses main restrictions, and its key is an environment secret
-restricted to branch `main`. Player credentials stay outside the game runtime.
+## Join, host, or build
 
-`PROOF_ENABLED=true` enables the referee. Setting it to `false` skips execution,
-but scheduled workflow records still appear. Disable the workflow/remove the
-schedule to stop those too. This owner switch is not an immutable security guard;
-adopted code can change/remove it. Standard hosted runners on this public repo
-are free; no paid/self-hosted runners or unrelated credentials are authorized.
+| I want to… | Start here |
+| --- | --- |
+| Play in a friend's game | [Player guide](docs/playing.md): finding your turn, proposing, voting, and reading results |
+| Understand every decision | [Mechanics reference](docs/playable-game.md): eligibility, deadlines, votes, tests, scoring, and state |
+| Start a game for my group | [Owner setup](docs/owner-setup.md): repository, players, referee App, permissions, and first launch |
+| Implement a new rule | [Extending the game](docs/extending.md): code map, worked amendments, migration, and tests |
+| Reset or troubleshoot a game | [Operations guide](docs/operations.md): controls, diagnostics, and agreed recovery |
+| Know what has actually been tested | [Validation and history](docs/validation.md): live evidence versus remaining limits |
 
-## Reset a game
+Players use their normal GitHub accounts; they do **not** need their own GitHub
+Apps. The host configures one referee App. Familiarity with branches, pull
+requests, and a little Python is helpful; reviews and discussion happen in GitHub.
 
-Once the new workflows are deployed to main, the personal repository owner can
-use **Actions → Reset game → Run workflow**, choose `main` and enter `RESET`.
-Equivalent command, using the owner's normal authenticated GitHub CLI:
+## Before starting
 
-```sh
-gh workflow run reset-game.yml --ref main -f confirm=RESET
-```
+This repository includes a **bot-played demonstration ledger and roster**, not a
+fresh game for your group. Do not treat cloning it or pressing Reset as player
+registration. Follow the setup guide to configure your own players and state.
 
-This is an explicit **out-of-game** operation: keep current code/rules/players,
-clear scores/history/winner/active proposal, and restart at turn one with the
-first registered player. Previous games remain in Git history. No PRs or branches
-are deleted; old PRs do not become new-turn proposals. An enabled referee starts
-the new window automatically from the reset's main push; a paused referee leaves
-it ready to start. It does not restore original code or starter rules.
+The documented setup uses a **public repository owned by a personal GitHub
+account**, hosted Actions runners, and tightly scoped credentials. Do not put
+secrets or confidential work into game proposals. Human-account/fork behavior
+still needs a short setup smoke test; the demonstrated live gameplay used bots.
 
-Both dispatch and re-run must be by the personal repository owner. The job uses
-the existing main-only environment and serializes with reconciliation. No reset
-is automatic on game-over. Organization repositories need a separately agreed
-operator authorization policy; this owner-login check targets personal repos.
-
-`python reset_game.py` previews fresh state locally **without API calls or writes**.
-For a direct live reset, an operator with a repo-scoped referee token can run the
-installed main copy with `--repo OWNER/REPO --installed-sha SHA --apply
---confirm-reset OWNER/REPO`. It verifies installed rules and main freshness, then
-makes a normal non-force state commit; it never rewrites Git history. Ordinary
-player tokens cannot bypass main restrictions. Reset implementation is local
-only for now; no actual game has been reset by this change.
-
-## Pytest baseline
-
-`require_pytest: true` in `game.json` requires the latest matching PR-head pytest
-run/attempt and its pytest step to succeed before selection and again before
-adoption. Missing/running checks wait; failures can be fixed before freezing.
-If a selected revision's check ceases to pass, approving votes cannot merge it;
-it waits for passing checks until cutoff, then fails. A rejecting majority can
-still close it immediately. Test completion wakes reconciliation automatically.
-
-The baseline runner executes `python -m pytest -q` on the exact proposed head,
-not the merge result, on a disposable hosted runner without credentials,
-environments, secrets or shared caches. Failing tests, collection errors and
-no collected tests produce nonzero exits. The referee only reads GitHub run/job
-metadata; it never executes proposed code. Its App token additionally requests
-Actions read (already present in the existing installation grants).
-
-**Tests and the test workflow are themselves amendable.** No comparison against
-installed test/runner files, fixed test suite, or two-step runner restriction is
-imposed. The gate trusts the modifiable CI report; it does not prove tests are
-meaningful or prevent a voted change from disabling it. The current result lookup
-uses `proposal-tests.yml`, its PR/SHA run-name, job `pytest`, and step `Run pytest`;
-those identifiers and the lookup logic are amendable game code too.
-
-## Limits
-
-- Custom review checks and PR closing/merging are not atomic. Only the merge head
-  SHA is atomically pinned. Final review/base/force-push races remain possible.
-- State commits use the installed parent and a non-force ref update, rejecting a
-  concurrent divergent main update instead of overwriting adopted code/state.
-- Writes are never blindly retried. A new checkout reads authoritative state after
-  an ambiguous response. Ordinary retry paths are simulated; exhaustive recovery
-  is not guaranteed, and state/logic amendments can deliberately break it.
-- Review dismissal is represented by GitHub's current review state, not a complete
-  historical snapshot. A currently dismissed review does not count, even if it
-  was dismissed after the cutoff. Other reviews submitted at/after cutoff are
-  excluded. Timeline consistency can also delay detection of force pushes.
-- Human/fork behavior and deliberate game-breaking amendments remain untested.
+For local development: install Python 3.12+, Git, and the dependencies in
+[`requirements-test.txt`](requirements-test.txt). The [development guide](docs/extending.md#local-development)
+walks through running the tests without live credentials.

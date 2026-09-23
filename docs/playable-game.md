@@ -1,173 +1,255 @@
-# Playable game: mechanics and bounded QA
+# Mechanics reference
 
-Local v6 supports 2+ registered players, early approving/rejecting majorities,
-passing pytest before selection/merge, and explicit owner resets. This is locally
-validated, not deployed to the finished live v4 game; its historical campaign
-below used voting deadlines even when a majority was already present.
+[Home](../README.md) · [Player guide](playing.md) · [Extending the game](extending.md)
 
-## State transitions
+This describes the **baseline v6 implementation**, not immutable rules. Read the
+installed `main` revision when interpreting a particular game. Accepted changes
+can alter every behavior below. Platform access controls and the owner's
+administrative authority are outside executable game law.
 
-`new → proposing → voting → merged PR → adopted settlement → proposing/finished`
+## Configuration and state
 
-A missed proposal window records `passed`. A revised/conflicted/ineligible PR is
-closed without points; a strict rejecting majority closes early and records
-`rejected`. With neither majority, voting continues until cutoff, when insufficient
-approvals also record `rejected`.
-A manually closed PR records `closed`. Only the selected PR is closed; unrelated,
-extra, or ineligible PRs are ignored. Reopening an old PR does not reset its
-creation time or make it eligible in a later turn.
+[`game.json`](../game.json) is the configuration:
 
-The selection check uses current open/non-draft eligibility and original PR
-creation time within the proposal window. A timely PR can therefore be selected
-on a delayed tick and receive a full voting window. This is not a historical
-snapshot of draft/readiness/test status at the proposal cutoff.
+| Field | Baseline meaning / validation |
+| --- | --- |
+| `base` | `main`; code, workflow events and environment setup currently assume that name |
+| `players` | Ordered list of at least two distinct positive integer **GitHub user IDs** |
+| `require_pytest` | Boolean; defaults to `true` if omitted |
+| `turns.proposal_seconds` | Proposal-window length; normally 604800 (one week) |
+| `turns.voting_seconds` | Voting-window length; normally 604800 |
+| `turns.points_per_accept` | Positive integer award; normally 1 |
+| `turns.points_to_win` | Positive integer winning threshold; normally 5 |
 
-With the baseline `require_pytest: true`, the selected head must have passing
-pytest before voting opens. A failing/pending PR is not frozen and may be fixed
-within the proposal window; select the earliest currently valid candidate. No
-valid candidate at a reconciliation after cutoff means a pass. Checks are read
-again before merging; pending/failing reruns block early approval and produce
-`pytest-pending`/`pytest-failed` at cutoff. Early rejection does not wait for CI.
+All four `turns` values must be positive integers, not booleans or numeric
+strings. Changing a validator is itself a possible amendment. A configuration
+without `turns` invokes the older proof-only path in `referee.py`; removing that
+key does **not** merely disable the timer for the playable game.
 
-`game.json` sets player order (any list of 2+ unique IDs), durations, award, victory
-threshold and the amendable pytest requirement. `state.json`
-contains the mutable ledger and progress. Opening voting commits the selected PR,
-head SHA, electorate, award, cutoff and existing force-push event IDs. Changing
-head or adding a force-push timeline event after selection invalidates it. New
-force-push events catch returning to the original head, subject to GitHub API
-consistency and the final non-atomic check/merge race.
+[`state.json`](../state.json) is mutable game data, versioned alongside code:
 
-The latest decisive eligible review submitted **before** the deadline counts if
-it matches the selected head. Comments/pending reviews are ignored; dismissal
-revokes a vote. Reviews submitted before the selection run can count on that same
-head. Current GitHub dismissal state is authoritative, even after cutoff, because
-the review endpoint is not a historical vote database.
+| Field | Meaning |
+| --- | --- |
+| `phase` | `new`, `proposing`, `voting`, or `finished` |
+| `turn`, `player` | Positive turn number and current proposer's registered ID |
+| `scores` | Integer scores keyed by **stringified** user IDs |
+| `started_at` | Start of the proposal window; remains that value during voting |
+| `deadline` | Current proposal or voting cutoff |
+| `proposal` | Frozen snapshot while voting; otherwise normally `null` |
+| `history` | Completed turn records, outcomes, PR/head and award/merge where relevant |
+| `winners` | Eligible IDs reaching the winning threshold when the game finishes |
 
-A strict majority is more than half of **all** eligible non-author voters, not
-just votes cast: `floor((registered_count - 1) / 2) + 1`. The electorate remains
-frozen for that proposal. As soon as reconciliation observes and rechecks an approving
-majority, the installed referee merges the pinned head and exits; a rejecting
-majority closes the PR and advances without points. Ties/abstentions cannot end
-voting early. Reviews can change until a decisive outcome is acted on; submission
-and resolution are not an atomic transaction. Both outcomes recheck votes and
-installed-base freshness; merge additionally pins the head SHA. Unknown
-mergeability delays an approved proposal but does not delay a rejecting majority.
+The frozen proposal contains `number`, `head`, `author`, `opened_at`, `voters`,
+`award` and `force_push_ids`. Use `proposal.opened_at`, not `started_at`, for the
+start of voting. UTC timestamps use ISO-8601. The `new` reset state has no active
+deadline; initialization starts its first full window.
 
-The next main-push invocation after adoption loads adopted code and state, observes the merged
-PR, applies the frozen award to the adopted ledger, records the merge, checks the
-adopted victory rule, and uses the adopted rotation for the next turn. Nothing
-protects that settlement mechanism against an amendment. Removing its pending
-state or breaking the code can legitimately stop/change the game.
+There is no hidden database. Runtime writes and adopted state amendments both
+appear in Git history. An old `state.json` on a proposal branch is not the current
+scoreboard. State validation is not a complete migration or corruption-recovery
+system; authors must design compatible amendments.
 
-Each invocation performs at most one state commit or merge. A state commit is a
-new Git tree based on the exact installed parent followed by a non-force ref
-update. Concurrent divergent main changes fail closed. A lost merge/state-write
-response is recovered by rereading the new main/PR in a fresh invocation. A lost
-close response advances on the next tick with outcome `closed` (the finer reason
-may be lost); it does not award points or repeat a completed turn.
+## Lifecycle
 
-## Local validation
+```text
+new ──initialize──> proposing ──select eligible PR──> voting
+                       │                              │
+                  no proposal                    reject/invalid
+                       │                              │
+                       └────── finish turn <──────────┘
+                                      ▲
+ voting ──approve──> merge ──fresh adopted invocation──┘
+                                      │
+                          next proposing / finished
+```
 
-Install `requirements-test.txt`, then run `python -m pytest -q` (the unittest
-suite also runs under `python -m unittest discover -s tests -v` in that environment).
+There is no stored `merged` phase. Between merge and settlement the pending
+proposal remains in `voting`, and the next invocation sees that its PR merged.
+A `finished` game idles; it does not select new proposals or automatically reset.
 
-- Full 13-turn game over almost 26 simulated weeks, first to five; idempotent idle
-  and finished ticks, missed turns and delayed notifications.
-- Earliest eligible selection, out-of-turn/draft/late/competing proposals; early
-  approving/rejecting majorities, non-deciding abstentions/ties, and cutoff failure.
-- Changed/stale/dismissed/late reviews, withdrawn majorities on final recheck,
-  read-only early decisions, stale installed-base protection and early-close retries.
-- Roster sizes from 2 to 100, whole-roster majority thresholds, and rotation wrap.
-- Revisions, force-push restoration, conflicts, unknown mergeability and closed PRs.
-- Missing/failed/stale/wrong-head or wrong-workflow checks, reruns and final-check
-  changes, passing checks before freezing, pre-freeze repairs and gate amendments.
-- Real pytest executions with valid rewritten tests, failing tests, syntax errors
-  and no collected tests; passing/failing behavior is not inferred only from mocks.
-- Reset state construction, unchanged rules/player order, explicit confirmation,
-  installed-rule/main freshness checks, no blind retry and old-PR exclusion.
-- Dry runs, stale checkouts, failed writes and lost state/merge/close responses.
-- Amendments to score ledger, award, rotation and victory threshold.
-- Real disposable Git merges plus fresh Python processes: old code accepts a code
-  and ledger amendment; the three-way merge preserves both voting state and the
-  proposed ledger; early approval adopts the change before cutoff and freshly
-  adopted scoring code settles the award once.
-- API adapter tests assert installed-parent tree construction and non-force ref
-  updates. These are not a live concurrency or transactional-merge guarantee.
+## Selecting a proposal
 
-Original first-proof regression tests remain. Tests themselves are amendable.
-No local result alone proves GitHub scheduling, token attribution, or event flow.
+During `proposing`, the referee lists open PRs targeting the configured base,
+sorted by creation time and then PR number. A candidate must:
 
-## CI and reset boundaries
+1. Be authored by the current player.
+2. Have been **created at or after `started_at`, strictly before `deadline`**.
+3. Be open, non-draft, unmerged and still targeting `main` when reread.
+4. Have passing current-head pytest metadata when the gate is enabled.
 
-`Proposal tests` uses ordinary `pull_request`, no token permissions, no secrets
-or environment, no shared cache, and an unauthenticated fetch of the exact head.
-No `pull_request_target` or privileged execution of proposed code is introduced.
-The referee consumes run/job metadata only. The tests/runner may be changed in the
-same proposal: the baseline gate is not an integrity lock on either. It checks
-the latest PR/SHA-bound run attempt and a successful `pytest` job/`Run pytest`
-step; it trusts that mutable report rather than proving test quality. Tests run
-on the proposed head, not the eventual merge result. APIs and workflow wiring
-are mocked/linted locally; real delivery and human/fork behavior remain untested.
+Failing/pending candidates are skipped, not frozen. The author can revise them
+before selection. The first qualifying candidate wins; ignored PRs are not
+closed and are not queued for later turns. Reopening a PR or marking it ready
+does not change its original creation time.
 
-`Reset game` is separately and explicitly dispatched by the personal repository
-owner, with `RESET` confirmation; a different actor cannot re-run an owner reset.
-It shares referee concurrency and the main-only environment, requests only App
-Contents write, and calls `reset_game.py` from installed main. The CLI verifies
-the loaded rules match that main SHA and makes a normal state-only, non-force
-commit. Rules/code/player order and Git history remain; no PRs/branches are
-closed or deleted. Scores/history/current proposal/winner are cleared and the
-first player starts at turn one on the next enabled reconciliation. An explicit
-reset may be used on a finished or active game; it is out-of-game administration,
-not an ordinary proposal or an automatic game-over recovery mechanism.
+Selection snapshots the head, electorate (registered non-authors), current
+award and existing force-push timeline IDs. It commits `phase: voting` and a
+**full** voting window measured from this reconciliation. No majority is required
+to open voting. A known conflict may still be selected; voting-phase validation
+then rejects it rather than allowing conflicted adoption.
 
-The baseline reset workflow and API path have **not** been live-executed. Local
-source tests check its owner/main/confirmation conditions, not actual GitHub
-permission enforcement. No reset or deployment is authorized merely by testing
-its implementation. See README for local preview and post-deployment usage.
+If a tick occurs after the proposal deadline, the referee still considers PRs
+created on time **using their current readiness and test status**. It does not
+reconstruct whether they were ready/passing exactly at cutoff. If none qualifies,
+it records a pass. Thus late processing may select a timely-created PR that was
+fixed late; players should not rely on that accidental grace period.
 
-## Authorized live campaign (historical: deadline-only voting)
+## Frozen revisions and invalidation
 
-Repository: `UgoLouche/git-nomic-test` only; existing four isolated Apps.
-Ugo approved **50 additional workflow runs** after the initial 33-run proof, and
-an **eight-hour** schedule (03:17/11:17/19:17 UTC). Standard public hosted runners
-only; no broader credentials. The cap is operational and applies during this
-supervised campaign, not an enforced lifetime limit on subsequent scheduled jobs.
+Once selected, these conditions end the proposal without points:
 
-Preflight read-back found the original main SHA unchanged, no open PRs/active
-runs, all four installations restricted to this repository, player bypass never,
-referee bypass always, the main-only environment policy, and readable PR timeline.
-Ugo confirmed `PROOF_ENABLED=true`; the Apps cannot inspect/change that variable.
+| Observation | Outcome |
+| --- | --- |
+| Head differs, or force-push timeline IDs changed | `revised` |
+| Base changed or selected PR became draft | `ineligible` |
+| GitHub explicitly reports non-mergeable | `conflicted` |
+| PR is already closed and not merged | `closed` |
 
-Planned bounded scenarios, all upgrades/amendments adopted through player votes:
+The referee closes an open invalid PR, then records the turn outcome. Force-push
+history detects returning to the originally selected SHA, subject to GitHub's
+timeline consistency. Unknown mergeability is different from a conflict: it
+blocks acceptance but does not by itself end the turn. There is no guaranteed
+upper bound if GitHub never resolves an unknown mergeability result.
 
-1. A proposes the playable upgrade; B/C approve under the installed proof rules.
-   Test profile uses 300-second proposal and 180-second voting windows, with an
-   explicitly initialized ledger. This is a disposable test profile, not the
-   human game's one-week defaults.
-2. A proposes a visible referee marker change plus a ledger/award amendment. B/C
-   vote. Require no early merge, then deadline merge and automatic adopted-code
-   settlement/state commit, preserving the voted ledger edit.
-3. B proposes and revises after selection; require closure, no award and rotation.
-4. C misses its proposal window; require exactly one pass and a full new A window.
-5. A proposes restoring weekly durations and one-point future awards. After B/C
-   approval and cutoff, verify settlement/victory under the preceding voted ledger
-   and award amendment; repeat reconciliation without duplicate points.
+## Votes and deadlines
 
-For short-deadline tests, the operator may submit a clearly labeled COMMENTED
-review (not a vote) to wake the existing unprivileged signal at/after a real-time
-cutoff. This exercises the actual Actions/referee path without changing its clock
-or requiring Actions-write permission. It does **not** prove the cron trigger.
-A scheduled run, if one occurs during observation, is separate evidence; otherwise
-scheduled delivery remains pending rather than waiting eight hours for a test.
+For each frozen eligible voter, sort reviews by submission time and ID. Use the
+latest decisive review submitted **strictly before the voting deadline**:
+`APPROVED`, `CHANGES_REQUESTED`, or `DISMISSED`. It must refer to the frozen head;
+otherwise that voter abstains. Comments and pending reviews do not replace a
+previous decisive review. Authors and accounts outside the frozen electorate
+never count. Reviews from before selection can count on that same revision.
 
-Stop at the cap, unexpected permissions/workflow behavior, or an actual blocker.
-Observe canceled/coalesced notifications by reading authoritative PR/main state;
-never resubmit mutations blindly. Store PRs, SHAs, run IDs and outcomes, never
-credentials. Revoke temporary operator tokens after each use.
+A currently dismissed review does not count, even if the dismissal happened
+later than the cutoff. This is the current GitHub review state, **not** a full
+historical event reconstruction. A decisive review at/after cutoff is excluded;
+its existence does not replace the last eligible pre-cutoff vote.
 
-Afterward stop initiating campaign runs. Pausing `PROOF_ENABLED` is optional
-owner housekeeping, not a required security step; leaving it enabled is consistent
-with the separately approved recurring schedule. Scheduled records continue while
-paused; owner workflow disablement stops them. Do not mark the overall task
-complete without Ugo's agreement. Human UI and destructive game-over tests remain
-outside this campaign.
+For `N` registered players, the majority threshold is:
+
+```text
+voters = N - 1
+votes required = floor(voters / 2) + 1
+```
+
+The denominator is the **entire frozen electorate**, never votes cast.
+Abstentions/dismissals are not approving or rejecting votes.
+
+| Tally / time | Result |
+| --- | --- |
+| Approving majority before cutoff | Attempt early acceptance, subject to tests/revision/mergeability and final rechecks |
+| Rejecting majority before cutoff | Close early without points after rechecks |
+| Neither majority before cutoff | `waiting-for-votes` |
+| At/after cutoff with insufficient approvals | Reject, even without a rejecting majority |
+| At/after cutoff with enough pre-cutoff approvals | Attempt acceptance using those votes and current eligibility/tests |
+
+Submission and resolution are not atomic. A vote can change before the referee
+acts, and final API races remain. A majority is actionable when **observed and
+rechecked**, not necessarily at the moment its last review was submitted.
+
+## The pytest gate
+
+[`proposal-tests.yml`](../.github/workflows/proposal-tests.yml) runs on ordinary
+`pull_request` events. The baseline fetches the exact PR head without credentials
+and runs `python -m pytest -q` using pinned pytest 9.0.2 on Python 3.12. The test
+run is on the **proposed head**, not the eventual merge result. Test failures,
+collection errors and no tests all produce a nonzero exit.
+
+[`GitHub.pytest_status`](../referee.py) reads Actions metadata, requiring:
+
+- A `pull_request` run for the exact head and workflow path
+  `.github/workflows/proposal-tests.yml`.
+- Run title `Pytest PR #NUMBER @ SHA`.
+- The latest matching run/attempt, ordered by start/creation time, run number
+  and attempt, completed successfully.
+- Exactly one job named `pytest` and one step named `Run pytest`, both completed
+  successfully. Missing/skipped/neutral results do not count as passing.
+
+No matching run is pending. An API failure raises an error rather than inventing
+success. A later rerun can remove the head's previously passing status.
+
+The gate is checked before selection and again before merge, including a final
+recheck. An approving proposal with nonpassing tests waits before cutoff and
+fails at/after cutoff (`pytest-pending` or `pytest-failed`). A rejecting majority
+does not wait for CI. With insufficient approvals at cutoff, the outcome is
+`rejected` regardless of tests.
+
+**Tests and the workflow are amendable in the proposal itself.** The gate trusts
+a mutable CI report; it neither proves coverage quality nor enforces runner-file
+integrity. `require_pytest: false` disables the baseline gate after adoption.
+The currently installed gate still decides whether that amendment can be
+adopted. See [CI changes and compatibility](extending.md#changing-tests-and-workflows).
+
+## Adoption, scoring and victory
+
+There are two distinct executions:
+
+1. **Installed code decides adoption.** It checks current rules/state, frozen
+   revision, eligible votes, test results, mergeability and base freshness, then
+   asks GitHub to merge the exact head. It exits without scoring.
+2. **Adopted code settles.** An App-generated main push starts a fresh checkout.
+   That version sees the merged PR and updates the now-adopted ledger, history,
+   victory condition and turn rotation.
+
+With unchanged settlement code, the selected author's score gains the **frozen
+award**, preserving any adopted ledger edits. The history records the merge and
+award. Then all registered players whose scores reach the **adopted** winning
+threshold become winners; multiple winners are possible after amendments.
+Victory is checked when finishing any turn, not continuously on every idle tick.
+
+If there is no winner, increment the turn, choose the player after the current
+player in the **adopted order**, wrapping around, and start a full proposal window
+from processing time. A delayed tick does not skip several players at once.
+
+Consequences:
+
+- Changing only `points_per_accept` affects subsequently selected proposals,
+  not the award already frozen for this one.
+- Changing `points_to_win`, the score ledger or settlement code can affect the
+  adopting proposal's own outcome.
+- Changing rotation can affect the very next player.
+- Removing the current player without handling the pending state can fail
+  validation before settlement. Removing/replacing the pending proposal can
+  deliberately alter or break settlement.
+- Syntax errors or disabled automation after adoption can stop the game. The
+  old referee does not return to finish the job as a protected fallback.
+
+## What wakes the referee?
+
+```text
+PR events ──> Proposal tests ──completion──┐
+PR/review events ──> Vote signal ──completion──> Referee on installed main
+main push / manual dispatch / schedule ───┘
+                         │
+                   state commit or merge
+                         └──> main push ──> fresh Referee
+```
+
+`workflow_run` completion is a wake-up signal, not an instruction to trust that
+PR's code or artifact. The referee reads authoritative GitHub data and explicitly
+checks out current `main`; the triggering run's SHA may differ from the checkout's
+`installed_sha`. Failed tests can wake it too, so it can report the failure.
+
+The baseline schedule is **03:17, 11:17 and 19:17 UTC**. GitHub may delay/drop
+scheduled runs. Referee and reset share a concurrency group; pending runs can
+be coalesced/canceled. Idle and finished invocations do not write new commits.
+
+## Writes, retries and limits
+
+One invocation performs at most **one main state commit or one merge**. Rejection
+may also close the PR before the state write. State writes create a tree from the
+exact installed parent and move `main` without force; divergent concurrent
+updates are rejected rather than overwritten. Only the merge's expected head
+SHA is atomically guarded. Votes, base freshness, timelines and merge are not
+one transaction.
+
+After an ambiguous write response, the next fresh invocation rereads state:
+committed state is not awarded again; a completed merge can still be settled.
+If closing succeeded but its response was lost, the finer reason may become
+`closed` on retry. Exhaustive recovery and progress are not guaranteed, especially
+under amendments. See [operations](operations.md) before retrying a mutation.
+
+The security boundary is explained in [owner setup](owner-setup.md): proposed
+code is unprivileged; adopted code obtains a repository-scoped referee identity.
+Game mutability is not permission to expose unrelated credentials or use
+unrelated repositories/runners.

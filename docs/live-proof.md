@@ -1,4 +1,9 @@
-# Live proof protocol (not yet executed)
+# Original live proof protocol (historical)
+
+> This was the original pre-execution plan; the proof has since run.
+> See [observed results](live-results.md) and [current validation](validation.md).
+> For a human game, use [Owner setup](owner-setup.md). Historical pause/budget
+> instructions below are not current operating requirements or new authorization.
 
 Run only in the new disposable repository, with independently scoped installation
 identities. Stop on an unexpected permission success, identity collision, unsafe
