@@ -1,58 +1,15 @@
 {
   "scores": {
-    "331775289": 4,
-    "331776221": 5,
+    "331775289": 0,
+    "331776221": 0,
     "331776549": 0
   },
-  "history": [
-    {
-      "turn": 1,
-      "player": 331775289,
-      "outcome": "accepted",
-      "at": "2026-09-20T23:11:08Z",
-      "pr": 5,
-      "head": "6ee90429c2d9806fd85978b526235a14830f2d86",
-      "award": 1,
-      "merge": "f3c492287c56a148f3f4a3f6b3fd8447d28046d9"
-    },
-    {
-      "turn": 2,
-      "player": 331776221,
-      "outcome": "revised",
-      "at": "2026-09-20T23:12:58Z",
-      "pr": 6,
-      "head": "67553033808e7fcde2de37b2e34b9c75d2909202"
-    },
-    {
-      "turn": 3,
-      "player": 331776549,
-      "outcome": "passed",
-      "at": "2026-09-20T23:18:22Z"
-    },
-    {
-      "turn": 4,
-      "player": 331775289,
-      "outcome": "passed",
-      "at": "2026-09-21T03:35:14Z"
-    },
-    {
-      "turn": 5,
-      "player": 331776221,
-      "outcome": "accepted",
-      "at": "2026-09-21T03:40:33Z",
-      "pr": 7,
-      "head": "337faec4f2d6698df3118000f834e9133ce5ce4f",
-      "award": 2,
-      "merge": "403f566bfa5963a10c17ee6dce19125d291264f9"
-    }
-  ],
-  "turn": 5,
-  "player": 331776221,
-  "phase": "finished",
-  "started_at": "2026-09-21T03:35:14Z",
+  "history": [],
+  "turn": 1,
+  "player": 331775289,
+  "phase": "new",
+  "started_at": null,
   "deadline": null,
   "proposal": null,
-  "winners": [
-    331776221
-  ]
+  "winners": []
 }
