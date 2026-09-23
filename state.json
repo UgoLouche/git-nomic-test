@@ -14,24 +14,21 @@
       "head": "ebf71ffd91c580c29107ea745cb86d246ca90568",
       "award": 1,
       "merge": "236b48d05c0bd1ed1090f5f433a1a78022503ca8"
+    },
+    {
+      "turn": 2,
+      "player": 331776221,
+      "outcome": "rejected",
+      "at": "2026-09-23T13:04:13Z",
+      "pr": 9,
+      "head": "720ece2465c4804731dfad2ba4a4bcb3057a2ad2"
     }
   ],
-  "turn": 2,
-  "player": 331776221,
-  "phase": "voting",
-  "started_at": "2026-09-23T12:59:52Z",
-  "deadline": "2026-09-30T13:01:18Z",
-  "proposal": {
-    "number": 9,
-    "head": "720ece2465c4804731dfad2ba4a4bcb3057a2ad2",
-    "author": 331776221,
-    "opened_at": "2026-09-23T13:01:18Z",
-    "voters": [
-      331775289,
-      331776549
-    ],
-    "award": 1,
-    "force_push_ids": []
-  },
+  "turn": 3,
+  "player": 331776549,
+  "phase": "proposing",
+  "started_at": "2026-09-23T13:04:13Z",
+  "deadline": "2026-09-30T13:04:13Z",
+  "proposal": null,
   "winners": []
 }
