@@ -2,9 +2,9 @@
   "base": "main",
   "require_pytest": true,
   "players": [
-    331775289,
-    331776221,
-    331776549
+    21306300,
+    52083007,
+    1392488
   ],
   "turns": {
     "proposal_seconds": 604800,
