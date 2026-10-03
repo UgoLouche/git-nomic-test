@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   reconcile:
-    if: github.ref == 'refs/heads/main' && vars.PROOF_ENABLED == 'true'
+    if: github.ref == 'refs/heads/main' && vars.REFEREE_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     # REQUIRED: configure this environment to allow branch main only.

@@ -76,8 +76,9 @@ requests, and a little Python is helpful; reviews and discussion happen in GitHu
 ## Before starting
 
 This repository includes a **bot-played demonstration ledger and roster**, not a
-fresh game for your group. Do not treat cloning it or pressing Reset as player
-registration. Follow the setup guide to configure your own players and state.
+fresh game for your group. The owner-only Reset game workflow can replace that
+roster and create matching fresh state from an ordered JSON list of numeric GitHub
+user IDs. Follow the setup guide before inviting people into a reused repository.
 
 The documented setup uses a **public repository owned by a personal GitHub
 account**, hosted Actions runners, and tightly scoped credentials. Do not put

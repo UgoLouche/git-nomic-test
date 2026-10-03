@@ -51,7 +51,7 @@ read-backs and filtered referee output are preserved locally in
   and exhaustive race/retry recovery remain untested. A changed or broken referee
   can legitimately stop the game; no immutable recovery engine is claimed.
 
-Owner-side pause remains `PROOF_ENABLED=false`. That skips execution but not
+Owner-side pause is now `REFEREE_ENABLED=false`. That skips execution but not
 scheduled workflow records; disabling the workflow also stops those. The campaign
 ceiling is 50 additional runs beyond the original 33, monitored rather than a
 technical lifetime spending limiter.

@@ -1,4 +1,5 @@
 """Variable rosters, mutable CI gate and explicit out-of-game resets."""
+import argparse
 import base64
 import copy
 import json
@@ -11,7 +12,7 @@ import unittest
 from unittest.mock import patch
 
 from referee import GitHub, validate_rules
-from reset_game import fresh_state, reset
+from reset_game import fresh_state, parse_player_ids, reset, rules_for_reset
 from test_game import World, RULES, WEEK
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -254,6 +255,25 @@ class ResetTests(unittest.TestCase):
         save.assert_called_once_with(fresh_state(RULES), SHA, "main",
                                      message="Owner reset: clear ledger and start a new game")
 
+    def test_reset_atomically_replaces_roster_and_matching_state(self):
+        api = self.api()
+        players = [55, 22, 77, 11]
+        expected_rules = rules_for_reset(RULES, players)
+        with patch.object(api, "save_rules_and_state", return_value="new-commit") as save:
+            self.assertEqual(reset(api, RULES, SHA, players), "new-commit")
+        save.assert_called_once_with(
+            expected_rules, fresh_state(expected_rules), SHA, "main",
+            message="Owner reset: replace roster and start a new game")
+        self.assertEqual(RULES["players"], [11, 22, 33])
+
+    def test_player_input_is_json_and_validated(self):
+        self.assertIsNone(parse_player_ids(""))
+        self.assertEqual(parse_player_ids("[55, 22, 77]"), [55, 22, 77])
+        for value in ("not-json", "55,22", "{}", "[]", "[1]", "[1,1]",
+                      "[1,0]", "[1,-2]", "[1,true]", '[1,"2"]'):
+            with self.subTest(value=value), self.assertRaises(argparse.ArgumentTypeError):
+                parse_player_ids(value)
+
     def test_reset_refuses_stale_main_mismatched_rules_and_bad_sha(self):
         for case in ("stale", "rules", "sha"):
             with self.subTest(case=case):
@@ -276,6 +296,14 @@ class ResetTests(unittest.TestCase):
         result = subprocess.run([sys.executable, str(ROOT / "reset_game.py")], cwd=ROOT,
                                 text=True, capture_output=True, check=True)
         self.assertEqual(json.loads(result.stdout)["result"], "preview")
+        preview = subprocess.run(
+            [sys.executable, str(ROOT / "reset_game.py"),
+             "--players-json", "[55,22,77]"], cwd=ROOT,
+            text=True, capture_output=True, check=True)
+        payload = json.loads(preview.stdout)
+        self.assertEqual(payload["players"], [55, 22, 77])
+        self.assertEqual(payload["state"]["player"], 55)
+        self.assertEqual(payload["state"]["scores"], {"55": 0, "22": 0, "77": 0})
         self.assertEqual((ROOT / "state.json").read_bytes(), state_before)
         for args in (["--apply"], ["--apply", "--repo", "owner/repo", "--installed-sha", SHA],
                      ["--apply", "--repo", "owner/repo", "--installed-sha", SHA,
@@ -322,10 +350,17 @@ class WorkflowBaselineTests(unittest.TestCase):
                          "github.triggering_actor == github.repository_owner",
                          "github.ref == 'refs/heads/main'", "inputs.confirm == 'RESET'",
                          "environment: referee-main", "group: git-nomic-referee",
-                         "persist-credentials: false", "--confirm-reset"):
+                         "persist-credentials: false", "inputs.players",
+                         "RESET_PLAYERS_JSON", "--players-json", "--confirm-reset"):
             self.assertIn(required, text)
-        self.assertNotIn("PROOF_ENABLED", text)  # reset is independently explicit
+        self.assertNotIn("REFEREE_ENABLED", text)  # reset is independently explicit
+        self.assertNotIn("PROOF_ENABLED", text)
         self.assertNotIn("permission-pull-requests: write", text)
+
+    def test_referee_uses_clear_enable_variable_name(self):
+        text = (ROOT / ".github/workflows/referee.yml").read_text()
+        self.assertIn("vars.REFEREE_ENABLED == 'true'", text)
+        self.assertNotIn("PROOF_ENABLED", text)
 
 
 class PytestExecutionTests(unittest.TestCase):

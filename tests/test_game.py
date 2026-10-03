@@ -577,6 +577,24 @@ class StateAdapterTests(unittest.TestCase):
         self.assertEqual(calls[3].kwargs["body"]["parents"], ["installed"])
         self.assertEqual(calls[4].kwargs["body"], {"sha": "commit", "force": False})
 
+    def test_rules_and_state_write_share_one_commit_and_parent(self):
+        api = GitHub("owner/repo")
+        rules = {"base": "main", "players": [8, 9]}
+        state = {"turn": 1, "phase": "new"}
+        with patch.object(api, "api", side_effect=[{"tree": {"sha": "old-tree"}},
+                                                   {"sha": "game-blob"},
+                                                   {"sha": "state-blob"},
+                                                   {"sha": "tree"}, {"sha": "commit"}, {}]) as call:
+            self.assertEqual(api.save_rules_and_state(
+                rules, state, "installed", "main", message="New roster"), "commit")
+        calls = call.call_args_list
+        self.assertEqual(json.loads(calls[1].kwargs["body"]["content"]), rules)
+        self.assertEqual(json.loads(calls[2].kwargs["body"]["content"]), state)
+        self.assertEqual([entry["path"] for entry in calls[3].kwargs["body"]["tree"]],
+                         ["game.json", "state.json"])
+        self.assertEqual(calls[4].kwargs["body"]["parents"], ["installed"])
+        self.assertEqual(calls[5].kwargs["body"], {"sha": "commit", "force": False})
+
     def test_ref_update_failure_not_blindly_retried(self):
         api = GitHub("owner/repo")
         with patch.object(api, "api", side_effect=[{"tree": {"sha": "old"}},

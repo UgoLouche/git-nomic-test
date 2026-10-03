@@ -139,22 +139,35 @@ class GitHub:
     def close(self, number):
         return self.api(f"pulls/{number}", method="PATCH", body={"state": "closed"})
 
-    def save_state(self, state, installed_sha, branch, *, message=None):
+    def _save_json_files(self, files, installed_sha, branch, *, message):
         # Build on exactly the installed commit, then advance main without force.
         # A concurrent unrelated main change makes this non-fast-forward, unlike
         # a Contents PUT guarded only by a file SHA. Failed writes are not retried.
         parent = self.api(f"git/commits/{installed_sha}")
-        blob = self.api("git/blobs", method="POST",
-                        body={"content": json.dumps(state, indent=2) + "\n", "encoding": "utf-8"})
+        entries = []
+        for path, value in sorted(files.items()):
+            blob = self.api("git/blobs", method="POST", body={
+                "content": json.dumps(value, indent=2) + "\n", "encoding": "utf-8"})
+            entries.append({"path": path, "mode": "100644", "type": "blob",
+                            "sha": blob["sha"]})
         tree = self.api("git/trees", method="POST", body={
-            "base_tree": parent["tree"]["sha"],
-            "tree": [{"path": "state.json", "mode": "100644", "type": "blob", "sha": blob["sha"]}]})
+            "base_tree": parent["tree"]["sha"], "tree": entries})
         commit = self.api("git/commits", method="POST", body={
-            "message": message or f"Referee: turn {state['turn']} {state['phase']}",
-            "tree": tree["sha"], "parents": [installed_sha]})
+            "message": message, "tree": tree["sha"], "parents": [installed_sha]})
         self.api(f"git/refs/heads/{branch}", method="PATCH",
                  body={"sha": commit["sha"], "force": False})
         return commit["sha"]
+
+    def save_state(self, state, installed_sha, branch, *, message=None):
+        return self._save_json_files(
+            {"state.json": state}, installed_sha, branch,
+            message=message or f"Referee: turn {state['turn']} {state['phase']}")
+
+    def save_rules_and_state(self, rules, state, installed_sha, branch, *, message):
+        """Atomically install a roster/rules update and its matching fresh state."""
+        return self._save_json_files(
+            {"game.json": rules, "state.json": state}, installed_sha, branch,
+            message=message)
 
 
 def reconcile(api, rules, installed_sha, *, apply=False, emit=print):

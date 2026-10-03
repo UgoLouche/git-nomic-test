@@ -48,7 +48,7 @@ git remote -v
 
 Verify `origin` points to **your new empty repository**, not the demonstration.
 Keep Actions' referee disabled/unconfigured until the rest of setup is ready.
-Missing `PROOF_ENABLED` prevents the baseline referee job from executing.
+Missing `REFEREE_ENABLED` prevents the baseline referee job from executing.
 
 ### Register actual people
 
@@ -167,10 +167,10 @@ Add repository **Actions variables**:
 | Variable | Value |
 | --- | --- |
 | `REFEREE_CLIENT_ID` | Your referee App's Client ID |
-| `PROOF_ENABLED` | `false` during setup |
+| `REFEREE_ENABLED` | `false` during setup |
 
-Despite its historical name, `PROOF_ENABLED` is the general referee enable
-switch. It is not a sandbox and does not disable the separate owner-reset job.
+`REFEREE_ENABLED` controls execution of the referee reconciliation job. It is not
+a sandbox and does not disable the separate owner-reset job.
 
 ### Check that a non-main job cannot enter the environment
 
@@ -241,7 +241,7 @@ Review the checklist:
 - [ ] Player permission rehearsal passed; merge commits and Actions are enabled.
 - [ ] Players know how voting, frozen revisions and agreed recovery work.
 
-Set `PROOF_ENABLED=true`, then **Actions → Referee → Run workflow → main**.
+Set `REFEREE_ENABLED=true`, then **Actions → Referee → Run workflow → main**.
 Changing a variable is not itself a workflow trigger; this manual run starts the
 game immediately rather than waiting for the schedule.
 
@@ -253,19 +253,22 @@ let the first player open a **new** PR after the recorded start time.
 
 ## Reusing an existing demo instead
 
-You can reuse the demonstration repository, but it is not fresh configuration.
-Agree an out-of-game preparation window; preserve old history, replace bot IDs
-with humans, and install a matching fresh state **together**. Updating only the
-roster can leave the stored current player/proposal invalid. Reset alone clears
-scores but **does not replace the roster or restore starter code**.
+You can reuse the demonstration repository while preserving its history and
+existing referee setup. Agree an out-of-game preparation window, set
+`REFEREE_ENABLED=false`, and let active jobs finish. This skips future referee
+execution but is not a lock against an already-running job or owner reset.
 
-For a coordinated setup the owner can temporarily set `PROOF_ENABLED=false` and
-let active jobs finish. This skips future referee execution but is not a lock
-against an already-running job or owner reset. Install the agreed roster/state
-through an explicitly authorized referee operation or tightly controlled owner
-bootstrap, then reverify restrictions before enabling. Do not leave a human
-bypass behind. Remove the old **player-App installations** from the game, retain
-the referee installation, and perform the human smoke test above.
+Run **Actions → Reset game → Run workflow** on `main`. Enter the ordered numeric
+IDs as a JSON array such as `[123456,789012]`, enter `RESET`, and dispatch it. The
+workflow validates at least two distinct positive IDs and atomically commits the
+new `game.json` roster with matching fresh `state.json`. Leaving the player list
+blank retains the installed roster. In either case, rules/code and Git history
+remain; this operation does not restore starter code or close old PRs.
+
+Remove the old **player-App installations** from the game, retain the referee
+installation, invite the humans with Write access, and perform the smoke test
+above. Reverify that no temporary human/admin bypass remains before setting
+`REFEREE_ENABLED=true` and manually running Referee to start the first window.
 
 These are owner decisions, not actions players should take through ordinary
 manual merges. A separate new repository avoids mixing initial human play with

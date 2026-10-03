@@ -157,9 +157,11 @@ when you want a different calculation, not a different constant.
   but migrating a new scoring schema may require more than adding a player ID.
 
 For a normal continuing game, test rotation and eligibility across the adoption
-boundary, including wraparound and the pending author. For replacing the whole
-roster between games, agree an owner bootstrap of matching rules and fresh state
-rather than disguising a reset as an ordinary edit. See [setup](owner-setup.md#reusing-an-existing-demo-instead).
+boundary, including wraparound and the pending author. Between games, the owner
+can use the Reset game workflow with an ordered player-ID list to atomically
+install the roster and matching fresh state. That remains explicit out-of-game
+administration, not an ordinary rule proposal. See
+[setup](owner-setup.md#reusing-an-existing-demo-instead).
 
 ## Editing live state without losing the turn
 

@@ -16,12 +16,14 @@ a guarantee about another repository, or instructions to repeat a campaign.
 | CI gate | Live deliberate pytest failure blocked selection; repair opened voting; a workflow amendment ran in the same proposal before adoption. Negative metadata/rerun races also have local coverage. |
 | Player isolation | Three player Apps were actually denied valid direct-main writes/manual merges by repository restrictions. This is not a human/fork proof. |
 | Secret environment | A non-main job was rejected by deployment policy before secret placement in the original bootstrap. New repositories must verify their own configuration. |
-| Owner reset | A real owner dispatch produced a state-only commit and automatic fresh start. Negative owner/re-run conditions have source/test coverage only. |
+| Owner reset | A real owner dispatch produced a state-only commit and automatic fresh start. Atomic roster replacement and negative owner/re-run conditions have source/test coverage only until exercised live. |
 | Scheduled execution | Actual successful `schedule` runs executed the referee. Punctual delivery is not guaranteed. |
 
 The v6 post-campaign tree passed **92 tests + 109 subtests**, compilation and
-**actionlint 1.7.12** on all four workflows. These counts describe that checkpoint,
-not a permanent requirement for future amendments. Local test instructions and
+**actionlint 1.7.12** on all four workflows. The subsequent roster-reset and
+`REFEREE_ENABLED` update passed **96 tests + 119 subtests**, compilation and the
+same actionlint version before publication. These counts describe checkpoints,
+not permanent requirements for future amendments. Local test instructions and
 the test-file map are in [Extending the game](extending.md).
 
 ## Reports
@@ -46,8 +48,9 @@ This is a trusted-friends experiment. No claim is made that it is a hardened
 service for adversarial players, that GitHub events arrive exactly once/on time,
 or that any accepted amendment leaves a playable game.
 
-Human/fork behavior, non-owner reset rejection and deliberate destructive
-amendments still need separate validation if your group wants to rely on them.
+Human/fork behavior, roster-replacing reset delivery, non-owner reset rejection
+and deliberate destructive amendments still need separate validation if your
+group wants to rely on them.
 Custom vote/base checks and merges are not atomic. Current-state review dismissal
 and timeline consistency are not complete historical reconstruction. Tests cannot
 prove all retries/races, and the mutable tests are not an integrity guarantee.

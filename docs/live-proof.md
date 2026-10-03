@@ -21,7 +21,8 @@ amendment automatically; those experiments are deferred from this first slice.
 3. Inspect ruleset enforcement and the referee-only bypass actor. Check that the
    protected environment matches branch `main` only, not tags or PR refs. App
    credentials must have no repository Administration/Secrets permissions.
-4. While the environment contains **no real key** and `PROOF_ENABLED=false`, have
+4. While the environment contains **no real key** and the referee enable switch
+   is false (then named `PROOF_ENABLED`, now `REFEREE_ENABLED`), have
    player A push a branch with a small `push` workflow whose job references
    `referee-main` and merely echoes a harmless marker. The job must be rejected
    by deployment policy before executing. No secret-reading or exfiltration test
@@ -85,7 +86,8 @@ missing permissions as legitimate game-over.
 Initial campaign cap: **50 workflow runs**, standard public Linux runners only.
 The cap is operational, not technically enforced. If delivery delays consume the
 cap, stop/report rather than adding recurring schedules or paying for capacity.
-Disable `PROOF_ENABLED` after the campaign; that requires owner variable access.
+Disable the referee enable switch after the campaign; it was then named
+`PROOF_ENABLED` and is now `REFEREE_ENABLED`. That requires owner variable access.
 If unexpectedly modified workflows ignore it, the owner can disable Actions or
 suspend the dedicated referee App. Do not delete the repository/evidence without
 Ugo's agreement.

@@ -2,8 +2,12 @@ name: Reset game
 on:
   workflow_dispatch:
     inputs:
+      players:
+        description: 'Ordered JSON user ID array, e.g. [123,456]; blank keeps current players'
+        required: false
+        type: string
       confirm:
-        description: 'Type RESET to clear scores/history and restart with current players/rules'
+        description: 'Type RESET to clear scores/history and start the new game'
         required: true
         type: string
 permissions:
@@ -38,10 +42,12 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: ${{ github.event.repository.name }}
           permission-contents: write
-      - name: Reset only state, retaining Git history and installed rules
+      - name: Reset state and optionally replace the roster
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
+          RESET_PLAYERS_JSON: ${{ inputs.players }}
         run: |
           python reset_game.py --repo "$GITHUB_REPOSITORY" \
             --installed-sha "$(git rev-parse HEAD)" \
+            --players-json "$RESET_PLAYERS_JSON" \
             --apply --confirm-reset "$GITHUB_REPOSITORY"

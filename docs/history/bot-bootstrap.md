@@ -104,7 +104,8 @@ Repository **Settings → Environments → New environment → `referee-main`**:
 Repository **Settings → Secrets and variables → Actions → Variables**:
 
 - `REFEREE_CLIENT_ID`: referee's Client ID.
-- `PROOF_ENABLED`: `false`.
+- Referee enable switch: `false`. It was named `PROOF_ENABLED` during this
+  historical bootstrap and is now `REFEREE_ENABLED`.
 
 After the environment-isolation probe succeeds, add **environment secret**
 `REFEREE_PRIVATE_KEY` to `referee-main` using the referee PEM. Never create it as
@@ -121,8 +122,9 @@ repo-scoped credentials for test operations. No general owner PAT is requested.
 
 The agent can then finish source bootstrap, resolve each App bot's **user ID**,
 write those three IDs into `game.json`, validate restrictions, and run the proof.
-App ID, installation ID, and bot user ID are different numbers. Enabling
-`PROOF_ENABLED` comes after configuration/isolation verification, not before.
+App ID, installation ID, and bot user ID are different numbers. Enabling the
+referee switch (now `REFEREE_ENABLED`) comes after configuration/isolation
+verification, not before.
 
 ## Primary documentation
 

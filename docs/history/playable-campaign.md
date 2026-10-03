@@ -12,7 +12,8 @@ supervised campaign, not an enforced lifetime limit on subsequent scheduled jobs
 Preflight read-back found the original main SHA unchanged, no open PRs/active
 runs, all four installations restricted to this repository, player bypass never,
 referee bypass always, the main-only environment policy, and readable PR timeline.
-Ugo confirmed `PROOF_ENABLED=true`; the Apps cannot inspect/change that variable.
+Ugo confirmed the then-named `PROOF_ENABLED=true`; the switch is now named
+`REFEREE_ENABLED`, and the Apps cannot inspect/change that variable.
 
 Planned bounded scenarios, all upgrades/amendments adopted through player votes:
 
@@ -41,8 +42,9 @@ Observe canceled/coalesced notifications by reading authoritative PR/main state;
 never resubmit mutations blindly. Store PRs, SHAs, run IDs and outcomes, never
 credentials. Revoke temporary operator tokens after each use.
 
-Afterward stop initiating campaign runs. Pausing `PROOF_ENABLED` is optional
-owner housekeeping, not a required security step; leaving it enabled is consistent
+Afterward stop initiating campaign runs. Pausing the referee enable switch (now
+`REFEREE_ENABLED`) is optional owner housekeeping, not a required security step;
+leaving it enabled is consistent
 with the separately approved recurring schedule. Scheduled records continue while
 paused; owner workflow disablement stops them. Do not mark the overall task
 complete without Ugo's agreement. Human UI and destructive game-over tests remain
