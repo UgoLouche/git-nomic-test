@@ -10,6 +10,6 @@
     "proposal_seconds": 604800,
     "voting_seconds": 604800,
     "points_per_accept": 1,
-    "points_to_win": 5
+    "points_to_win": 50
   }
 }
