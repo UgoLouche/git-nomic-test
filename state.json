@@ -7,9 +7,20 @@
   "history": [],
   "turn": 1,
   "player": 21306300,
-  "phase": "proposing",
+  "phase": "voting",
   "started_at": "2026-10-03T20:52:13Z",
-  "deadline": "2026-10-10T20:52:13Z",
-  "proposal": null,
+  "deadline": "2026-10-10T20:56:27Z",
+  "proposal": {
+    "number": 10,
+    "head": "a9209b460c79460bd414ded1d52237c4c9af7279",
+    "author": 21306300,
+    "opened_at": "2026-10-03T20:56:27Z",
+    "voters": [
+      52083007,
+      1392488
+    ],
+    "award": 1,
+    "force_push_ids": []
+  },
   "winners": []
 }
