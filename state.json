@@ -4,23 +4,21 @@
     "52083007": 0,
     "1392488": 0
   },
-  "history": [],
-  "turn": 1,
-  "player": 21306300,
-  "phase": "voting",
-  "started_at": "2026-10-03T20:52:13Z",
-  "deadline": "2026-10-10T20:56:27Z",
-  "proposal": {
-    "number": 10,
-    "head": "a9209b460c79460bd414ded1d52237c4c9af7279",
-    "author": 21306300,
-    "opened_at": "2026-10-03T20:56:27Z",
-    "voters": [
-      52083007,
-      1392488
-    ],
-    "award": 1,
-    "force_push_ids": []
-  },
+  "history": [
+    {
+      "turn": 1,
+      "player": 21306300,
+      "outcome": "rejected",
+      "at": "2026-10-10T22:37:09Z",
+      "pr": 10,
+      "head": "a9209b460c79460bd414ded1d52237c4c9af7279"
+    }
+  ],
+  "turn": 2,
+  "player": 52083007,
+  "phase": "proposing",
+  "started_at": "2026-10-10T22:37:09Z",
+  "deadline": "2026-10-17T22:37:09Z",
+  "proposal": null,
   "winners": []
 }
