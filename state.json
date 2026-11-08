@@ -30,13 +30,19 @@
       "player": 21306300,
       "outcome": "passed",
       "at": "2026-11-01T10:33:13Z"
+    },
+    {
+      "turn": 5,
+      "player": 52083007,
+      "outcome": "passed",
+      "at": "2026-11-08T17:05:28Z"
     }
   ],
-  "turn": 5,
-  "player": 52083007,
+  "turn": 6,
+  "player": 1392488,
   "phase": "proposing",
-  "started_at": "2026-11-01T10:33:13Z",
-  "deadline": "2026-11-08T10:33:13Z",
+  "started_at": "2026-11-08T17:05:28Z",
+  "deadline": "2026-11-15T17:05:28Z",
   "proposal": null,
   "winners": []
 }
